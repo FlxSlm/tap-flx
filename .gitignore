@@ -1,0 +1,60 @@
+# =============================================================================
+# MyPortfolio — Root .gitignore
+# =============================================================================
+
+# ----- Environment & Secrets -----
+.env
+.env.*
+!.env.example
+
+# ----- Node / npm -----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ----- PHP / Composer -----
+vendor/
+composer.phar
+
+# ----- Laravel -----
+backend/storage/*.key
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*
+
+# ----- Vite / Build -----
+dist/
+build/
+*.local
+
+# ----- OS Files -----
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ----- IDE / Editor -----
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# ----- Testing / Coverage -----
+coverage/
+.phpunit.result.cache
+.phpunit.cache/
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- Misc -----
+*.bak
+*.tmp
+*.temp
