@@ -1,42 +1,41 @@
 # CURRENT TASK
 
 ## Task ID
-I1-01c
+I1-02
 
 ## Task
-Scaffold React/Vite frontend project in frontend/ directory.
+MySQL database creation & Laravel .env config.
 
 ## Goal
-Have a working React/Vite installation that can serve the frontend.
+Create a MySQL database for the project and configure the Laravel backend to connect to it.
 
 ## Prerequisites (completed)
 - [x] I1-00 — Environment inspection
 - [x] I1-01a — Git init, project structure, .gitignore
 - [x] I1-01b — Laravel backend scaffolding
+- [x] I1-01c — React/Vite frontend scaffolding
 
 ## Steps
-1. Run `npm create vite@latest frontend -- --template react` (or equivalent)
-2. Run `npm install` inside frontend/
-3. Verify `npm run dev` starts successfully
-4. Confirm React welcome page loads
-5. Commit checkpoint
+1. Create a new MySQL database (e.g., `myportfolio`).
+2. Update `backend/.env` with database credentials.
+3. Run `php artisan migrate` to verify the connection.
+4. Commit checkpoint
 
 ## Do Not
-- no authentication yet
+- no authentication implementation yet
 - no UI dashboard implementation yet
-- no API connection yet
+- no API connection between frontend and backend yet
 - no PDF parsing
 - no valuation / reporting
 
 ## Expected Output
-- React project files in frontend/
-- `npm run dev` works
-- React responds on localhost
+- Database created in MySQL
+- Laravel successfully runs migrations against the new database
 
 ## After Task
 Update CURRENT_STATUS.md and TASK.md.
 Create a Git commit.
 
 ## Next Task
-I1-02 — MySQL database creation & Laravel .env config.
+I1-03 — Authentication (Laravel Sanctum + React login).
 

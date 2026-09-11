@@ -19,7 +19,6 @@ IN PROGRESS
 - [x] I1-01a — Git init, project structure (backend/, frontend/, docs/), root .gitignore
 
 ## Not Yet Completed
-- [ ] I1-01c — React/Vite frontend scaffolding
 - [ ] I1-02 — MySQL database creation & Laravel .env config
 - [ ] I1-03 — Authentication (Laravel Sanctum + React login)
 - [ ] I1-04 — Canonical transaction schema (migration + model)
@@ -31,14 +30,14 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-01b — COMPLETE. Awaiting approval to proceed to I1-01c.
+I1-01c — COMPLETE. Awaiting approval to proceed to I1-02.
 
 ## Immediate Next Steps
-1. I1-01c — Scaffold React/Vite frontend in frontend/ directory.
-2. Verify React dev server starts successfully.
+1. I1-02 — MySQL database creation (create project DB like `myportfolio`).
+2. Configure Laravel backend `.env` for DB credentials.
 
 ## Last Successful Test
-Laravel backend scaffolded and verified responding on localhost:8000.
+React/Vite frontend scaffolded and verified responding on http://localhost:5173.
 
 ## Known Issues
 - No proposal PDF in docs/ yet (using PROJECT_CONTEXT.md as reference).
