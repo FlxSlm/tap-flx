@@ -19,7 +19,6 @@ IN PROGRESS
 - [x] I1-01a — Git init, project structure (backend/, frontend/, docs/), root .gitignore
 
 ## Not Yet Completed
-- [ ] I1-02 — MySQL database creation & Laravel .env config
 - [ ] I1-03 — Authentication (Laravel Sanctum + React login)
 - [ ] I1-04 — Canonical transaction schema (migration + model)
 - [ ] I1-05 — Internal transaction API (CRUD endpoints)
@@ -30,14 +29,13 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-01c — COMPLETE. Awaiting approval to proceed to I1-02.
+I1-02 — COMPLETE. Awaiting approval to proceed to I1-03.
 
 ## Immediate Next Steps
-1. I1-02 — MySQL database creation (create project DB like `myportfolio`).
-2. Configure Laravel backend `.env` for DB credentials.
+1. I1-03 — Authentication (Laravel Sanctum setup in backend, React login page in frontend).
 
 ## Last Successful Test
-React/Vite frontend scaffolded and verified responding on http://localhost:5173.
+Laravel backend successfully connected to MySQL `myportfolio` database and ran initial migrations.
 
 ## Known Issues
 - No proposal PDF in docs/ yet (using PROJECT_CONTEXT.md as reference).
