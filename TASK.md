@@ -1,41 +1,42 @@
 # CURRENT TASK
 
 ## Task ID
-I1-01b
+I1-01c
 
 ## Task
-Scaffold Laravel backend project in backend/ directory.
+Scaffold React/Vite frontend project in frontend/ directory.
 
 ## Goal
-Have a working Laravel installation that can serve API responses.
+Have a working React/Vite installation that can serve the frontend.
 
 ## Prerequisites (completed)
 - [x] I1-00 — Environment inspection
 - [x] I1-01a — Git init, project structure, .gitignore
+- [x] I1-01b — Laravel backend scaffolding
 
 ## Steps
-1. Run `composer create-project laravel/laravel backend/` (or equivalent)
-2. Verify `php artisan serve` starts successfully
-3. Confirm Laravel welcome page loads
-4. Commit checkpoint
+1. Run `npm create vite@latest frontend -- --template react` (or equivalent)
+2. Run `npm install` inside frontend/
+3. Verify `npm run dev` starts successfully
+4. Confirm React welcome page loads
+5. Commit checkpoint
 
 ## Do Not
 - no authentication yet
-- no database migration yet
-- no API endpoints yet
+- no UI dashboard implementation yet
+- no API connection yet
 - no PDF parsing
-- no Gmail / n8n / Yahoo Finance / GOAPI / Indodax
 - no valuation / reporting
 
 ## Expected Output
-- Laravel project files in backend/
-- `php artisan serve` works
-- Laravel responds on localhost
+- React project files in frontend/
+- `npm run dev` works
+- React responds on localhost
 
 ## After Task
 Update CURRENT_STATUS.md and TASK.md.
 Create a Git commit.
 
 ## Next Task
-I1-01c — Scaffold React/Vite frontend project in frontend/ directory.
+I1-02 — MySQL database creation & Laravel .env config.
 
