@@ -19,7 +19,6 @@ IN PROGRESS
 - [x] I1-01a — Git init, project structure (backend/, frontend/, docs/), root .gitignore
 
 ## Not Yet Completed
-- [ ] I1-03 — Authentication (Laravel Sanctum + React login)
 - [ ] I1-04 — Canonical transaction schema (migration + model)
 - [ ] I1-05 — Internal transaction API (CRUD endpoints)
 - [ ] I1-06 — Mock transaction seeder
@@ -29,13 +28,18 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-02 — COMPLETE. Awaiting approval to proceed to I1-03.
+I1-03 — COMPLETE. Awaiting approval to proceed to I1-04.
 
 ## Immediate Next Steps
-1. I1-03 — Authentication (Laravel Sanctum setup in backend, React login page in frontend).
+1. I1-04 — Implement canonical transaction schema (migration and Eloquent model).
 
 ## Last Successful Test
-Laravel backend successfully connected to MySQL `myportfolio` database and ran initial migrations.
+Laravel Sanctum SPA authentication flow successfully configured; React login page created and tested against backend. End-to-end verification via Node script passed successfully:
+- CSRF cookie retrieved and handled.
+- Valid login works.
+- Invalid login rejected (401).
+- Protected route (`/api/user`) correctly guarded.
+- Logout successfully invalidates session.
 
 ## Known Issues
 - No proposal PDF in docs/ yet (using PROJECT_CONTEXT.md as reference).
