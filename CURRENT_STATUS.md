@@ -21,7 +21,7 @@ IN PROGRESS
 
 ## Not Yet Completed
 - [x] I1-04 — Canonical transaction schema (migration + model)
-- [ ] I1-05 — Internal transaction API (CRUD endpoints)
+- [x] I1-05 — Internal transaction API (CRUD endpoints)
 - [ ] I1-06 — Mock transaction seeder
 - [ ] I1-07 — React transaction form & list
 - [ ] I1-08 — Dashboard UI (following design reference)
@@ -29,10 +29,10 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-04 — COMPLETE. Canonical Transaction Schema & Data Model established.
+I1-05 — COMPLETE. Internal Transaction API implemented with authorization and deduplication.
 
 ## Immediate Next Steps
-1. Proceed to I1-05 — Internal transaction API (CRUD endpoints).
+1. Proceed to I1-06 — Mock transaction seeder.
 
 ## Last Successful Test
 Full authentication flow verified via PowerShell E2E test (2026-09-18):
