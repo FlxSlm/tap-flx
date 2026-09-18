@@ -28,18 +28,22 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-03 — COMPLETE. Awaiting approval to proceed to I1-04.
+I1-03 — IN PROGRESS. Authentication fix applied (withXSRFToken, SESSION_DOMAIN, APP_URL). Awaiting user manual browser verification.
 
 ## Immediate Next Steps
-1. I1-04 — Implement canonical transaction schema (migration and Eloquent model).
+1. User verifies login via browser at http://localhost:5173/login
+2. If verified, mark I1-03 complete and proceed to I1-04.
 
 ## Last Successful Test
-Laravel Sanctum SPA authentication flow successfully configured; React login page created and tested against backend. End-to-end verification via Node script passed successfully:
-- CSRF cookie retrieved and handled.
-- Valid login works.
-- Invalid login rejected (401).
-- Protected route (`/api/user`) correctly guarded.
-- Logout successfully invalidates session.
+Laravel Sanctum SPA authentication flow verified via PowerShell E2E test (2026-09-18):
+- GET /sanctum/csrf-cookie → 204, XSRF-TOKEN + session cookie set (domain=localhost)
+- POST /login (test@example.com / password) → 200, user data returned
+- GET /api/user → 200, authenticated user data returned
+- POST /logout → 200, session invalidated
+- GET /api/user (after logout) → 401, correctly rejected
+
+Root cause of previous failure: Axios 1.x `withXSRFToken` not set (XSRF header not sent on cross-origin requests).
+Additional fixes: APP_URL corrected to http://localhost:8000, SESSION_DOMAIN set to localhost.
 
 ## Known Issues
 - No proposal PDF in docs/ yet (using PROJECT_CONTEXT.md as reference).
