@@ -6,6 +6,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import Transactions from './pages/Transactions';
+
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
@@ -20,6 +22,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/transactions" 
+        element={
+          <ProtectedRoute>
+            <Transactions />
           </ProtectedRoute>
         } 
       />

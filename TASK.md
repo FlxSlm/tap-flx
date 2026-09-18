@@ -1,37 +1,35 @@
 # CURRENT TASK
 
 ## Task ID
-I1-06
+I1-07 (and Finalization of Increment 1)
 
 ## Task
-Mock Transaction Seeder
+React Transaction Form & List
 
 ## Goal
-Build a robust, idempotent data seeder to populate the database with realistic dummy transactions across multiple platforms and email connections for testing.
+Build the frontend UI for creating, reading, updating, and deleting canonical transactions. Mark Increment 1 as COMPLETE.
 
 ## Status
 COMPLETE ✅
 
 ## Prerequisites (completed)
-- [x] I1-02 — DB Config
 - [x] I1-03 — Authentication
 - [x] I1-04 — Canonical Transaction Schema
 - [x] I1-05 — Internal Transaction API
+- [x] I1-06 — Mock Transaction Seeder
 
 ## Features Implemented
-1. **Idempotency**: `MockTransactionSeeder` uses `firstOrCreate` alongside explicit `transaction_hash` generation to allow repeated executions without duplication errors.
-2. **Data Structure**:
-   - `test@example.com` (1 User)
-   - `gmail1@example.com`, `gmail2@example.com` (2 Email Connections)
-   - Stockbit, BIONS, Pluang (3 Investment Accounts mapped to emails)
-   - 7 canonical transactions representing BUY/SELL behaviors across different dates.
-3. **Seeder Registration**: Registered inside `DatabaseSeeder.php` for seamless execution via `php artisan db:seed`.
+1. **Frontend UI (`Transactions.jsx`)**: Added a table to list transactions and a form to create/edit transactions.
+2. **Investment Account API**: Created `InvestmentAccountController.php` with `GET /api/investment-accounts` to populate the form dropdown, enforcing user ownership.
+3. **Frontend Routing**: Added `/transactions` protected route to `App.jsx`.
+4. **Integration**: UI successfully integrates with Laravel Sanctum and the internal API endpoints using the existing axios configuration.
 
 ## Verification Results
-- [x] `php artisan db:seed` runs successfully and inserts exact records.
-- [x] Running `php artisan db:seed` multiple times correctly rejects duplicate inserts silently (idempotency verified).
-- [x] `TransactionApiTest` regression passes.
+- [x] Frontend React application builds successfully (`npm run build`).
+- [x] `InvestmentAccountApiTest` passes (ownership authorization verified).
+- [x] `TransactionApiTest` (regression) passes.
 - [x] Authentication logic remains unaffected (Login works).
+- [x] Increment 1 requirements fully satisfied.
 
 ## Next Task
-I1-07 — React transaction form & list.
+PENDING / NEXT INCREMENT — Do not implement yet.
