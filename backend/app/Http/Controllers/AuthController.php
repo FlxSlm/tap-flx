@@ -14,6 +14,12 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
+        \Illuminate\Support\Facades\Log::info('Login attempt', [
+            'email' => $credentials['email'] ?? 'NOT_SET',
+            'password_length' => isset($credentials['password']) ? strlen($credentials['password']) : 0,
+            'is_password_empty' => empty($credentials['password'])
+        ]);
+
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 

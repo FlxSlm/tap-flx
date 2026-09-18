@@ -22,11 +22,13 @@ Axios 1.x does NOT automatically send XSRF-TOKEN as X-XSRF-TOKEN header for cros
 ## Changes Applied
 1. **frontend/src/api/axios.js** — Added `withXSRFToken: true` to axios instance config.
 2. **backend/.env** — Fixed `APP_URL=http://localhost:8000` (was missing port), set `SESSION_DOMAIN=localhost` explicitly.
-3. **backend** — Ran `php artisan optimize:clear` to clear cached config.
+3. **frontend/src/pages/Login.jsx** — Added `.trim()` to email and password before sending to prevent invisible trailing spaces.
+4. **backend/app/Http/Controllers/AuthController.php** — Added temporary diagnostic logging to capture the exact payload received.
+5. **backend** — Ran `php artisan optimize:clear` to clear cached config.
 
 ## Verification
 - [x] PowerShell E2E test passed all 5 steps (CSRF → Login → User → Logout → Reject)
-- [ ] User manual browser verification pending
+- [ ] User manual browser verification pending (requires hard refresh)
 
 ## Status
 IN PROGRESS — awaiting user browser verification.

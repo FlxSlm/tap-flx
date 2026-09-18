@@ -13,7 +13,9 @@ const Login = () => {
         e.preventDefault();
         setError('');
         try {
-            await login(email, password);
+            const cleanEmail = email.trim();
+            const cleanPassword = password.trim();
+            await login(cleanEmail, cleanPassword);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed');

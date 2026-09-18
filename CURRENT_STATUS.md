@@ -28,11 +28,13 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-03 — IN PROGRESS. Authentication fix applied (withXSRFToken, SESSION_DOMAIN, APP_URL). Awaiting user manual browser verification.
+I1-03 — IN PROGRESS. Browser login returned 401. Added `.trim()` to React inputs and diagnostic logging to Laravel. Awaiting user manual browser verification with hard refresh.
 
 ## Immediate Next Steps
-1. User verifies login via browser at http://localhost:5173/login
-2. If verified, mark I1-03 complete and proceed to I1-04.
+1. User performs a hard refresh in the browser (Ctrl+F5) to ensure the latest Vite bundle is loaded.
+2. User manually types `test@example.com` and `password` (beware of password manager autofill).
+3. If verified, mark I1-03 complete and proceed to I1-04.
+4. If it still fails, the Laravel log will capture the exact email and password length received.
 
 ## Last Successful Test
 Laravel Sanctum SPA authentication flow verified via PowerShell E2E test (2026-09-18):
@@ -43,7 +45,7 @@ Laravel Sanctum SPA authentication flow verified via PowerShell E2E test (2026-0
 - GET /api/user (after logout) → 401, correctly rejected
 
 Root cause of previous failure: Axios 1.x `withXSRFToken` not set (XSRF header not sent on cross-origin requests).
-Additional fixes: APP_URL corrected to http://localhost:8000, SESSION_DOMAIN set to localhost.
+Additional fixes: APP_URL corrected to http://localhost:8000, SESSION_DOMAIN set to localhost, added `.trim()` to React frontend to prevent trailing space issues.
 
 ## Known Issues
 - No proposal PDF in docs/ yet (using PROJECT_CONTEXT.md as reference).
