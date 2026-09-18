@@ -1,59 +1,41 @@
 # CURRENT TASK
 
 ## Task ID
-I1-03
+I1-04
 
 ## Task
-Authentication (Laravel Sanctum + React Login + Register)
+Canonical Transaction Schema + Data Model Foundation
 
 ## Goal
-Complete authentication for Increment 1: Register, Login, Logout, Protected Route.
+Build the foundation for the canonical transaction ledger, supporting multiple platforms (Stockbit, Pluang, BIONS) and multiple Gmail connections per user.
 
 ## Status
 COMPLETE ✅
 
 ## Prerequisites (completed)
 - [x] I1-00 — Environment inspection
-- [x] I1-01a — Git init, project structure, .gitignore
-- [x] I1-01b — Laravel backend scaffolding
-- [x] I1-01c — React/Vite frontend scaffolding
-- [x] I1-02 — MySQL database creation & Laravel .env config
+- [x] I1-01 — Scaffolding
+- [x] I1-02 — DB Config
+- [x] I1-03 — Authentication
 
 ## Features Implemented
-1. **Login** — POST /login with email/password, Sanctum SPA session auth.
-2. **Register** — POST /register with name/email/password/password_confirmation, auto-login after register.
-3. **Logout** — POST /logout, session invalidation.
-4. **Protected Route** — GET /api/user guarded by auth:sanctum middleware.
-5. **Session Persistence** — Cookie-based session with XSRF protection.
+1. **Migrations**: `platforms`, `email_connections`, `investment_accounts`, `transactions`.
+2. **Models**: `Platform`, `EmailConnection`, `InvestmentAccount`, `Transaction`, updated `User`.
+3. **Relationships**: User -> EmailConnections/InvestmentAccounts -> Transactions.
+4. **Deduplication**: `transaction_hash` unique constraint on `transactions` table.
 
-## Backend Files
-- `app/Http/Controllers/AuthController.php` — register, login, logout methods
-- `routes/web.php` — POST /register, POST /login, POST /logout
-- `routes/api.php` — GET /api/user (auth:sanctum)
-- `config/cors.php` — register added to CORS paths
-- `config/sanctum.php` — stateful SPA config
-- `.env` — APP_URL, SESSION_DOMAIN, SANCTUM_STATEFUL_DOMAINS
-
-## Frontend Files
-- `src/pages/Login.jsx` — Login form with Register link
-- `src/pages/Register.jsx` — Register form with Login link
-- `src/pages/Dashboard.jsx` — Placeholder dashboard
-- `src/context/AuthContext.jsx` — register, login, logout, checkAuth
-- `src/components/ProtectedRoute.jsx` — Redirects unauthenticated to /login
-- `src/api/axios.js` — Axios with withCredentials + withXSRFToken
-- `src/App.jsx` — Routes for /login, /register, /
+## Database Tables
+- `platforms`: code, name
+- `email_connections`: user_id, email_address, oauth_provider, oauth_id, credentials, is_active, last_sync_at
+- `investment_accounts`: user_id, platform_id, email_connection_id, account_identifier, account_name
+- `transactions`: investment_account_id, transaction_date, type, symbol, asset_name, quantity, price, total_amount, currency, fee_amount, external_identifier, transaction_hash, source_metadata
 
 ## Verification Results
-- [x] Register valid user → 201
-- [x] Register duplicate email → 422
-- [x] Register password mismatch → 422
-- [x] Password stored as bcrypt hash
-- [x] Login new account → 200
-- [x] Login old account (test@example.com) → 200
-- [x] Logout → 200
-- [x] Protected route after logout → 401
-- [x] Browser login verified manually by user
+- [x] Schema migration successful (`php artisan migrate`).
+- [x] Data seeding successful (`I104TestSeeder`).
+- [x] Multi-Gmail mapped correctly to investment accounts.
+- [x] Transaction deduplication hash rejected duplicate inserts properly.
+- [x] Authentication regression test passed (Login still works).
 
 ## Next Task
-I1-04 — Canonical transaction schema (migration + model).
-DO NOT start until user approves.
+I1-05 — Internal transaction API (CRUD endpoints).

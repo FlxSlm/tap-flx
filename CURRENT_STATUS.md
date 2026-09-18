@@ -20,7 +20,7 @@ IN PROGRESS
 - [x] I1-03 — Authentication (Laravel Sanctum + React Login + Register + Logout + Protected Route)
 
 ## Not Yet Completed
-- [ ] I1-04 — Canonical transaction schema (migration + model)
+- [x] I1-04 — Canonical transaction schema (migration + model)
 - [ ] I1-05 — Internal transaction API (CRUD endpoints)
 - [ ] I1-06 — Mock transaction seeder
 - [ ] I1-07 — React transaction form & list
@@ -29,11 +29,10 @@ IN PROGRESS
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-03 — COMPLETE. Authentication fully working: Register, Login, Logout, Protected Route, Session Persistence.
+I1-04 — COMPLETE. Canonical Transaction Schema & Data Model established.
 
 ## Immediate Next Steps
-1. Await user verification of Register via browser.
-2. If verified, proceed to I1-04 — Canonical transaction schema.
+1. Proceed to I1-05 — Internal transaction API (CRUD endpoints).
 
 ## Last Successful Test
 Full authentication flow verified via PowerShell E2E test (2026-09-18):
