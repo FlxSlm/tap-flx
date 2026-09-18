@@ -1,39 +1,37 @@
 # CURRENT TASK
 
 ## Task ID
-I1-05
+I1-06
 
 ## Task
-Internal Transaction API (CRUD endpoints)
+Mock Transaction Seeder
 
 ## Goal
-Build the internal API endpoints for the canonical transaction ledger, ensuring authorization and data deduplication.
+Build a robust, idempotent data seeder to populate the database with realistic dummy transactions across multiple platforms and email connections for testing.
 
 ## Status
 COMPLETE ✅
 
 ## Prerequisites (completed)
-- [x] I1-01 — Scaffolding
 - [x] I1-02 — DB Config
 - [x] I1-03 — Authentication
 - [x] I1-04 — Canonical Transaction Schema
+- [x] I1-05 — Internal Transaction API
 
 ## Features Implemented
-1. **API Endpoints**: `GET /api/transactions`, `POST /api/transactions`, `GET /api/transactions/{id}`, `PUT /api/transactions/{id}`, `DELETE /api/transactions/{id}`.
-2. **Authorization**: Ensured that users can only manage transactions for `investment_accounts` that belong to them.
-3. **Deduplication**: `transaction_hash` prevents duplicates, API responds with `409 Conflict`.
-4. **Validation**: Enforced required fields and data types for creating/updating transactions.
-
-## API Structure
-- Controller: `TransactionController`
-- Resource: `TransactionResource`
-- Routes defined in `routes/api.php` under `auth:sanctum` middleware.
+1. **Idempotency**: `MockTransactionSeeder` uses `firstOrCreate` alongside explicit `transaction_hash` generation to allow repeated executions without duplication errors.
+2. **Data Structure**:
+   - `test@example.com` (1 User)
+   - `gmail1@example.com`, `gmail2@example.com` (2 Email Connections)
+   - Stockbit, BIONS, Pluang (3 Investment Accounts mapped to emails)
+   - 7 canonical transactions representing BUY/SELL behaviors across different dates.
+3. **Seeder Registration**: Registered inside `DatabaseSeeder.php` for seamless execution via `php artisan db:seed`.
 
 ## Verification Results
-- [x] All 8 feature tests (`TransactionApiTest`) passed successfully.
-- [x] `403 Unauthorized` properly thrown for cross-user data access attempts.
-- [x] `409 Conflict` properly thrown for duplicate transaction hashes.
-- [x] Authentication regression test passed (Login still works).
+- [x] `php artisan db:seed` runs successfully and inserts exact records.
+- [x] Running `php artisan db:seed` multiple times correctly rejects duplicate inserts silently (idempotency verified).
+- [x] `TransactionApiTest` regression passes.
+- [x] Authentication logic remains unaffected (Login works).
 
 ## Next Task
-I1-06 — Mock transaction seeder.
+I1-07 — React transaction form & list.

@@ -22,17 +22,17 @@ IN PROGRESS
 ## Not Yet Completed
 - [x] I1-04 — Canonical transaction schema (migration + model)
 - [x] I1-05 — Internal transaction API (CRUD endpoints)
-- [ ] I1-06 — Mock transaction seeder
+- [x] I1-06 — Mock transaction seeder
 - [ ] I1-07 — React transaction form & list
 - [ ] I1-08 — Dashboard UI (following design reference)
 - [ ] I1-09 — Integration test
 - [ ] I1-10 — Final Increment 1 testing & documentation
 
 ## Current Task
-I1-05 — COMPLETE. Internal Transaction API implemented with authorization and deduplication.
+I1-06 — COMPLETE. Mock Transaction Seeder implemented with data isolation and idempotency.
 
 ## Immediate Next Steps
-1. Proceed to I1-06 — Mock transaction seeder.
+1. Proceed to I1-07 — React transaction form & list.
 
 ## Last Successful Test
 Full authentication flow verified via PowerShell E2E test (2026-09-18):
