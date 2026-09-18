@@ -4,10 +4,13 @@
 I1-03
 
 ## Task
-Authentication (Laravel Sanctum + React login) — FIX
+Authentication (Laravel Sanctum + React Login + Register)
 
 ## Goal
-Fix the login flow so that browser-based login at http://localhost:5173/login works correctly with test credentials.
+Complete authentication for Increment 1: Register, Login, Logout, Protected Route.
+
+## Status
+COMPLETE ✅
 
 ## Prerequisites (completed)
 - [x] I1-00 — Environment inspection
@@ -16,32 +19,41 @@ Fix the login flow so that browser-based login at http://localhost:5173/login wo
 - [x] I1-01c — React/Vite frontend scaffolding
 - [x] I1-02 — MySQL database creation & Laravel .env config
 
-## Root Cause Found
-Axios 1.x does NOT automatically send XSRF-TOKEN as X-XSRF-TOKEN header for cross-origin requests (localhost:5173 → localhost:8000). The `withXSRFToken: true` option must be explicitly set.
+## Features Implemented
+1. **Login** — POST /login with email/password, Sanctum SPA session auth.
+2. **Register** — POST /register with name/email/password/password_confirmation, auto-login after register.
+3. **Logout** — POST /logout, session invalidation.
+4. **Protected Route** — GET /api/user guarded by auth:sanctum middleware.
+5. **Session Persistence** — Cookie-based session with XSRF protection.
 
-## Changes Applied
-1. **frontend/src/api/axios.js** — Added `withXSRFToken: true` to axios instance config.
-2. **backend/.env** — Fixed `APP_URL=http://localhost:8000` (was missing port), set `SESSION_DOMAIN=localhost` explicitly.
-3. **frontend/src/pages/Login.jsx** — Added `.trim()` to email and password before sending to prevent invisible trailing spaces.
-4. **backend/app/Http/Controllers/AuthController.php** — Added temporary diagnostic logging to capture the exact payload received.
-5. **backend** — Ran `php artisan optimize:clear` to clear cached config.
+## Backend Files
+- `app/Http/Controllers/AuthController.php` — register, login, logout methods
+- `routes/web.php` — POST /register, POST /login, POST /logout
+- `routes/api.php` — GET /api/user (auth:sanctum)
+- `config/cors.php` — register added to CORS paths
+- `config/sanctum.php` — stateful SPA config
+- `.env` — APP_URL, SESSION_DOMAIN, SANCTUM_STATEFUL_DOMAINS
 
-## Verification
-- [x] PowerShell E2E test passed all 5 steps (CSRF → Login → User → Logout → Reject)
-- [ ] User manual browser verification pending (requires hard refresh)
+## Frontend Files
+- `src/pages/Login.jsx` — Login form with Register link
+- `src/pages/Register.jsx` — Register form with Login link
+- `src/pages/Dashboard.jsx` — Placeholder dashboard
+- `src/context/AuthContext.jsx` — register, login, logout, checkAuth
+- `src/components/ProtectedRoute.jsx` — Redirects unauthenticated to /login
+- `src/api/axios.js` — Axios with withCredentials + withXSRFToken
+- `src/App.jsx` — Routes for /login, /register, /
 
-## Status
-IN PROGRESS — awaiting user browser verification.
+## Verification Results
+- [x] Register valid user → 201
+- [x] Register duplicate email → 422
+- [x] Register password mismatch → 422
+- [x] Password stored as bcrypt hash
+- [x] Login new account → 200
+- [x] Login old account (test@example.com) → 200
+- [x] Logout → 200
+- [x] Protected route after logout → 401
+- [x] Browser login verified manually by user
 
-## Do Not
-- Do not proceed to I1-04 until user confirms login works in browser
-- Do not create register functionality
-- Do not create canonical transaction schema
-- Do not create any new features
-
-## Next Task (after user verification)
+## Next Task
 I1-04 — Canonical transaction schema (migration + model).
-
-## Scope Note (for future reference, DO NOT implement now)
-Data sources revised to: Stockbit, Pluang, BIONS.
-Multi-Gmail + platform mapping architecture noted. Implementation deferred to later increments.
+DO NOT start until user approves.

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -49,8 +49,12 @@ const Login = () => {
                 </div>
                 <button type="submit" style={{ padding: '10px 15px', cursor: 'pointer' }}>Login</button>
             </form>
+            <p style={{ marginTop: '15px' }}>
+                Don't have an account? <Link to="/register">Register</Link>
+            </p>
         </div>
     );
 };
 
 export default Login;
+
