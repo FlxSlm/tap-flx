@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
 import Transactions from './pages/Transactions';
+import DocumentProcessing from './pages/DocumentProcessing';
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
@@ -30,6 +31,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Transactions />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/process-document" 
+        element={
+          <ProtectedRoute>
+            <DocumentProcessing />
           </ProtectedRoute>
         } 
       />

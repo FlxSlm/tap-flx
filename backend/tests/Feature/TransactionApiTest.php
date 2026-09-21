@@ -213,4 +213,49 @@ class TransactionApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseMissing('transactions', ['id' => $transaction->id]);
     }
+
+    public function test_bulk_store_creates_multiple_transactions()
+    {
+        $payload = [
+            'transactions' => [
+                [
+                    'investment_account_id' => $this->investmentAccount1->id,
+                    'transaction_date' => '2026-09-02T10:00:00Z',
+                    'type' => 'BUY',
+                    'symbol' => 'BBRI',
+                    'quantity' => 10,
+                    'price' => 5000,
+                    'total_amount' => 50000,
+                    'currency' => 'IDR'
+                ],
+                [
+                    'investment_account_id' => $this->investmentAccount1->id,
+                    'transaction_date' => '2026-09-03T10:00:00Z',
+                    'type' => 'SELL',
+                    'symbol' => 'BBRI',
+                    'quantity' => 5,
+                    'price' => 5500,
+                    'total_amount' => 27500,
+                    'currency' => 'IDR'
+                ]
+            ]
+        ];
+
+        $response = $this->actingAs($this->user1)->postJson('/api/transactions/bulk', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(2, 'successful');
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('transactions', [
+            'symbol' => 'BBRI',
+            'type' => 'BUY',
+            'quantity' => 10
+        ]);
+        $this->assertDatabaseHas('transactions', [
+            'symbol' => 'BBRI',
+            'type' => 'SELL',
+            'quantity' => 5
+        ]);
+    }
 }

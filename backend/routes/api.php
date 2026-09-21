@@ -11,5 +11,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::get('/investment-accounts', [InvestmentAccountController::class, 'index']);
+    Route::post('/transactions/bulk', [TransactionController::class, 'bulkStore']);
     Route::apiResource('transactions', TransactionController::class);
 });

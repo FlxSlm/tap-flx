@@ -85,6 +85,79 @@ class TransactionController extends Controller
     }
 
     /**
+     * Store multiple newly created resources in storage.
+     */
+    public function bulkStore(Request $request)
+    {
+        $request->validate([
+            'transactions' => 'required|array',
+            'transactions.*.investment_account_id' => 'required|exists:investment_accounts,id',
+            'transactions.*.transaction_date'      => 'required|date',
+            'transactions.*.type'                  => 'required|string',
+            'transactions.*.symbol'                => 'required|string',
+            'transactions.*.asset_name'            => 'nullable|string',
+            'transactions.*.quantity'              => 'required|numeric',
+            'transactions.*.price'                 => 'required|numeric',
+            'transactions.*.total_amount'          => 'required|numeric',
+            'transactions.*.currency'              => 'required|string',
+            'transactions.*.fee_amount'            => 'nullable|numeric',
+            'transactions.*.external_identifier'   => 'nullable|string',
+            'transactions.*.source_metadata'       => 'nullable|array',
+        ]);
+
+        $user = $request->user();
+        $successful = [];
+        $failed = [];
+
+        foreach ($request->transactions as $txData) {
+            // Authorization check per transaction
+            $investmentAccount = InvestmentAccount::find($txData['investment_account_id']);
+            if ($investmentAccount->user_id !== $user->id) {
+                $failed[] = [
+                    'transaction' => $txData,
+                    'reason' => 'Unauthorized access to this investment account.'
+                ];
+                continue;
+            }
+
+            // Generate transaction hash for deduplication
+            $hashData = implode('|', [
+                $txData['investment_account_id'],
+                date('Y-m-d', strtotime($txData['transaction_date'])),
+                $txData['type'],
+                $txData['symbol'],
+                (float) $txData['quantity'],
+                (float) $txData['price'],
+                (float) $txData['total_amount']
+            ]);
+            $txData['transaction_hash'] = md5($hashData);
+
+            try {
+                $transaction = Transaction::create($txData);
+                $successful[] = new TransactionResource($transaction);
+            } catch (QueryException $e) {
+                if (isset($e->errorInfo[1]) && in_array($e->errorInfo[1], [1062, 19])) {
+                    $failed[] = [
+                        'transaction' => $txData,
+                        'reason' => 'Duplicate transaction detected.'
+                    ];
+                } else {
+                    $failed[] = [
+                        'transaction' => $txData,
+                        'reason' => 'Database error: ' . $e->getMessage()
+                    ];
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'Bulk insert completed.',
+            'successful' => $successful,
+            'failed' => $failed
+        ], 200);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(Request $request, Transaction $transaction)
