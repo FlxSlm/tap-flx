@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import { PdfExtractor } from '../lib/document-processing/PdfExtractor';
 import { ProviderDetection } from '../lib/document-processing/ProviderDetection';
-import StockbitParser from '../lib/document-processing/parsers/StockbitParser';
-import PluangParser from '../lib/document-processing/parsers/PluangParser';
-import BionsParser from '../lib/document-processing/parsers/BionsParser';
 import { ValidationAndConfidence } from '../lib/document-processing/ValidationAndConfidence';
+
+// Parsers
+import { BionsTradeConfirmationParser } from '../lib/document-processing/parsers/BionsTradeConfirmationParser';
+import { BionsMonthlyStatementParser } from '../lib/document-processing/parsers/BionsMonthlyStatementParser';
+import { BionsCorporateActionParser } from '../lib/document-processing/parsers/BionsCorporateActionParser';
+import { StockbitTradeConfirmationParser } from '../lib/document-processing/parsers/StockbitTradeConfirmationParser';
+import { StockbitMonthlyStatementParser } from '../lib/document-processing/parsers/StockbitMonthlyStatementParser';
+import { PluangMonthlyStatementParser } from '../lib/document-processing/parsers/PluangMonthlyStatementParser';
+
 import './DocumentProcessing.css';
 
 const DocumentProcessing = () => {
@@ -16,7 +22,7 @@ const DocumentProcessing = () => {
   const [processingState, setProcessingState] = useState('IDLE'); // IDLE, EXTRACTING, PARSING, DONE, ERROR
   const [errorMessage, setErrorMessage] = useState('');
   
-  const [provider, setProvider] = useState(null);
+  const [detectedProvider, setDetectedProvider] = useState(null); // { provider, type }
   const [previewData, setPreviewData] = useState([]);
   const [selectedRows, setSelectedRows] = useState(new Set());
   
@@ -46,7 +52,7 @@ const DocumentProcessing = () => {
   const resetState = () => {
     setProcessingState('IDLE');
     setErrorMessage('');
-    setProvider(null);
+    setDetectedProvider(null);
     setPreviewData([]);
     setSelectedRows(new Set());
     setImportResult(null);
@@ -61,30 +67,50 @@ const DocumentProcessing = () => {
       const text = await PdfExtractor.extractTextFromFile(file);
       
       setProcessingState('PARSING');
-      const detectedProvider = ProviderDetection.detect(text);
-      if (!detectedProvider) {
-        throw new Error('Unknown Provider: Cannot identify Stockbit, Pluang, or BIONS from document text.');
+      const detection = ProviderDetection.detect(text);
+      if (detection.provider === 'UNKNOWN') {
+        throw new Error('Unknown Provider: Cannot identify the document from text.');
       }
       
-      setProvider(detectedProvider);
+      setDetectedProvider(detection);
       
       let parser = null;
-      if (detectedProvider === 'Stockbit') parser = new StockbitParser();
-      else if (detectedProvider === 'Pluang') parser = new PluangParser();
-      else if (detectedProvider === 'BIONS') parser = new BionsParser();
+      let profile = 'transaction';
+
+      if (detection.provider === 'STOCKBIT' && detection.type === 'TC') {
+        parser = new StockbitTradeConfirmationParser();
+        profile = 'transaction';
+      } else if (detection.provider === 'STOCKBIT' && detection.type === 'SOA') {
+        parser = new StockbitMonthlyStatementParser();
+        profile = 'snapshot';
+      } else if (detection.provider === 'BIONS' && detection.type === 'TC') {
+        parser = new BionsTradeConfirmationParser();
+        profile = 'transaction';
+      } else if (detection.provider === 'BIONS' && detection.type === 'SOA') {
+        parser = new BionsMonthlyStatementParser();
+        profile = 'snapshot';
+      } else if (detection.provider === 'BIONS' && detection.type === 'CA') {
+        parser = new BionsCorporateActionParser();
+        profile = 'transaction';
+      } else if (detection.provider === 'PLUANG' && detection.type === 'SOA') {
+        parser = new PluangMonthlyStatementParser();
+        profile = 'snapshot';
+      } else {
+        throw new Error(`No parser implemented for ${detection.provider} ${detection.type}`);
+      }
 
       const parsedData = parser.parse(text);
       if (parsedData.length === 0) {
-        throw new Error(`No transactions found matching the ${detectedProvider} format.`);
+        throw new Error(`No data found matching the ${detection.provider} ${detection.type} format.`);
       }
 
       const normalized = parser.normalize(parsedData);
       
-      const evaluated = normalized.map((tx, index) => {
-        const evalResult = ValidationAndConfidence.evaluate(tx);
+      const evaluated = normalized.map((item, index) => {
+        const evalResult = ValidationAndConfidence.evaluate(item, profile);
         return {
-          id: index, // temporary id for table
-          transaction: tx,
+          id: index,
+          data: item,
           score: evalResult.score,
           status: evalResult.status,
           errors: evalResult.errors,
@@ -94,7 +120,7 @@ const DocumentProcessing = () => {
 
       setPreviewData(evaluated);
       
-      // Auto-select AUTO ACCEPT rows
+      // Auto-select AUTO ACCEPT rows (for transactions) or Snapshot (for snapshots, usually we just import all)
       const defaultSelected = new Set();
       evaluated.forEach(row => {
         if (row.status === 'AUTO ACCEPT') {
@@ -134,25 +160,53 @@ const DocumentProcessing = () => {
 
     setImporting(true);
     setImportResult(null);
-    
-    // Add investment_account_id to each transaction payload
-    const payload = rowsToImport.map(row => ({
-      ...row.transaction,
-      investment_account_id: selectedAccountId
-    }));
 
     try {
-      const res = await axios.post('/api/transactions/bulk', { transactions: payload });
-      setImportResult({
-        success: true,
-        successfulCount: res.data.successful.length,
-        failedCount: res.data.failed.length,
-        failedDetails: res.data.failed
-      });
+      if (detectedProvider.type === 'SOA') {
+        // Bulk import snapshot
+        const items = rowsToImport.map(row => row.data);
+        // We only have one date for the snapshot, take from the first item
+        const asOfDate = items[0].as_of_date;
+
+        const payload = {
+          snapshots: [
+            {
+              investment_account_id: selectedAccountId,
+              as_of_date: asOfDate,
+              provider: detectedProvider.provider,
+              document_type: detectedProvider.type,
+              items: items
+            }
+          ]
+        };
+
+        const res = await axios.post('/api/portfolio-snapshots/bulk', payload);
+        setImportResult({
+          success: true,
+          successfulCount: res.data.successful[0]?.items?.length || 0,
+          failedCount: res.data.failed.length,
+          failedDetails: res.data.failed
+        });
+
+      } else {
+        // Bulk import transactions
+        const payload = rowsToImport.map(row => ({
+          ...row.data,
+          investment_account_id: selectedAccountId
+        }));
+
+        const res = await axios.post('/api/transactions/bulk', { transactions: payload });
+        setImportResult({
+          success: true,
+          successfulCount: res.data.successful.length,
+          failedCount: res.data.failed.length,
+          failedDetails: res.data.failed
+        });
+      }
     } catch (err) {
       setImportResult({
         success: false,
-        message: err.response?.data?.message || 'Failed to import transactions.'
+        message: err.response?.data?.message || 'Failed to import data.'
       });
     } finally {
       setImporting(false);
@@ -164,6 +218,110 @@ const DocumentProcessing = () => {
     if (status === 'REVIEW') return 'badge badge-warning';
     return 'badge badge-danger';
   };
+
+  const renderTransactionTable = () => (
+    <table className="tx-table mt-3">
+      <thead>
+        <tr>
+          <th>Import</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Symbol</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Total</th>
+          <th>Issues</th>
+        </tr>
+      </thead>
+      <tbody>
+        {previewData.map(row => {
+          const tx = row.data;
+          return (
+            <tr key={row.id} className={!row.isHardValidationPass ? 'row-invalid' : ''}>
+              <td>
+                <input 
+                  type="checkbox" 
+                  checked={selectedRows.has(row.id)}
+                  onChange={() => toggleRow(row.id)}
+                  disabled={row.status === 'REJECT'}
+                />
+              </td>
+              <td><span className={getStatusBadgeClass(row.status)}>{row.status}</span></td>
+              <td><strong>{row.score}/100</strong></td>
+              <td>{tx.transaction_date}</td>
+              <td>{tx.type}</td>
+              <td>{tx.symbol}</td>
+              <td>{tx.quantity}</td>
+              <td>{tx.price}</td>
+              <td>{tx.total_amount}</td>
+              <td>
+                {row.errors.length > 0 ? (
+                  <ul className="error-list">
+                    {row.errors.map((e, idx) => <li key={idx}>{e}</li>)}
+                  </ul>
+                ) : (
+                  <span className="text-muted">None</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+
+  const renderSnapshotTable = () => (
+    <table className="tx-table mt-3">
+      <thead>
+        <tr>
+          <th>Import</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>As Of Date</th>
+          <th>Symbol</th>
+          <th>Qty</th>
+          <th>Avg Price</th>
+          <th>Market Value</th>
+          <th>Issues</th>
+        </tr>
+      </thead>
+      <tbody>
+        {previewData.map(row => {
+          const item = row.data;
+          return (
+            <tr key={row.id} className={!row.isHardValidationPass ? 'row-invalid' : ''}>
+              <td>
+                <input 
+                  type="checkbox" 
+                  checked={selectedRows.has(row.id)}
+                  onChange={() => toggleRow(row.id)}
+                  disabled={row.status === 'REJECT'}
+                />
+              </td>
+              <td><span className={getStatusBadgeClass(row.status)}>{row.status}</span></td>
+              <td><strong>{row.score}/100</strong></td>
+              <td>{item.as_of_date}</td>
+              <td>{item.symbol}</td>
+              <td>{item.quantity}</td>
+              <td>{item.average_price}</td>
+              <td>{item.market_value}</td>
+              <td>
+                {row.errors.length > 0 ? (
+                  <ul className="error-list">
+                    {row.errors.map((e, idx) => <li key={idx}>{e}</li>)}
+                  </ul>
+                ) : (
+                  <span className="text-muted">None</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
 
   return (
     <div className="document-processing-page">
@@ -212,60 +370,13 @@ const DocumentProcessing = () => {
         <div className="results-container mt-4">
           <div className="results-header">
             <h3>Processing Result</h3>
-            <span className="provider-badge">Detected Provider: <strong>{provider}</strong></span>
+            <span className="provider-badge">
+              Detected: <strong>{detectedProvider.provider} {detectedProvider.type}</strong>
+            </span>
           </div>
 
           <div className="table-responsive">
-            <table className="tx-table mt-3">
-              <thead>
-                <tr>
-                  <th>Import</th>
-                  <th>Status</th>
-                  <th>Score</th>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Symbol</th>
-                  <th>Qty</th>
-                  <th>Price</th>
-                  <th>Total</th>
-                  <th>Issues</th>
-                </tr>
-              </thead>
-              <tbody>
-                {previewData.map(row => {
-                  const tx = row.transaction;
-                  return (
-                    <tr key={row.id} className={!row.isHardValidationPass ? 'row-invalid' : ''}>
-                      <td>
-                        <input 
-                          type="checkbox" 
-                          checked={selectedRows.has(row.id)}
-                          onChange={() => toggleRow(row.id)}
-                          disabled={row.status === 'REJECT'}
-                        />
-                      </td>
-                      <td><span className={getStatusBadgeClass(row.status)}>{row.status}</span></td>
-                      <td><strong>{row.score}/100</strong></td>
-                      <td>{tx.transaction_date}</td>
-                      <td>{tx.type}</td>
-                      <td>{tx.symbol}</td>
-                      <td>{tx.quantity}</td>
-                      <td>{tx.price}</td>
-                      <td>{tx.total_amount}</td>
-                      <td>
-                        {row.errors.length > 0 ? (
-                          <ul className="error-list">
-                            {row.errors.map((e, idx) => <li key={idx}>{e}</li>)}
-                          </ul>
-                        ) : (
-                          <span className="text-muted">None</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {detectedProvider.type === 'SOA' ? renderSnapshotTable() : renderTransactionTable()}
           </div>
 
           <div className="import-actions mt-4">
@@ -283,12 +394,12 @@ const DocumentProcessing = () => {
               {importResult.success ? (
                 <>
                   <p><strong>Import Complete</strong></p>
-                  <p>Successfully inserted: {importResult.successfulCount}</p>
+                  <p>Successfully inserted rows: {importResult.successfulCount}</p>
                   <p>Failed / Duplicates: {importResult.failedCount}</p>
                   {importResult.failedDetails && importResult.failedDetails.length > 0 && (
                     <ul>
                       {importResult.failedDetails.map((f, i) => (
-                        <li key={i}>{f.transaction.symbol} ({f.transaction.transaction_date}): {f.reason}</li>
+                        <li key={i}>{f.reason}</li>
                       ))}
                     </ul>
                   )}

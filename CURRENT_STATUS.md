@@ -4,26 +4,22 @@
 2026-09-22
 
 ## Current Increment
-Increment 2 — Document Processing & Privacy Mode
+Increment 2 — Document Processing & Privacy Mode (REVISION VALIDATED)
 
 ## Overall Status
-IN PROGRESS -> COMPLETED
+COMPLETED
 
 ## Completed
 - [x] Increment 1 — Foundation
 - [x] I2-01 — Install dependencies (`pdfjs-dist`, `vitest` for tests)
-- [x] I2-02 — Create `DocumentParserInterface.js`
-- [x] I2-03 — Create `PdfExtractor.js` (PDF.js integration)
-- [x] I2-04 — Create `ProviderDetection.js`
-- [x] I2-05 — Implement `StockbitParser.js`
-- [x] I2-06 — Implement `PluangParser.js`
-- [x] I2-07 — Implement `BionsParser.js`
-- [x] I2-08 — Implement Normalization, Validation, and Confidence Scoring (`ValidationAndConfidence.js`)
-- [x] I2-09 — Implement Backend Endpoint `POST /api/transactions/bulk`
-- [x] I2-10 — Create `DocumentProcessing.jsx` UI and update `App.jsx` routes
-- [x] I2-11 — Write and run frontend tests (`__tests__`)
-- [x] I2-12 — Write and run backend tests (`php artisan test`)
-- [x] I2-13 — Verify application builds (`npm run build`)
+- [x] I2-02 to I2-13 — Build initial architecture and dummy parser
+- [x] I2R-01 — Create `docs/aset_parser/PARSER_SOURCE_SPEC.md`
+- [x] I2R-02 — Backend: Create `portfolio_snapshots` & items migrations/API
+- [x] I2R-03 — Frontend: Refactor `ProviderDetection.js`
+- [x] I2R-04 to I2R-09 — Implement 6 specific parsers based on real PDFs
+- [x] I2R-10 — Refactor `ValidationAndConfidence.js` (dual-profile)
+- [x] I2R-11 — Update `DocumentProcessing.jsx` for Transaction and Snapshot
+- [x] I2R-12 to I2R-14 — Write tests and verify build
 
 ## Not Yet Completed
 (None for Increment 2)

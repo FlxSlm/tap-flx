@@ -12,5 +12,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('/investment-accounts', [InvestmentAccountController::class, 'index']);
     Route::post('/transactions/bulk', [TransactionController::class, 'bulkStore']);
+    Route::post('/portfolio-snapshots/bulk', [\App\Http\Controllers\PortfolioSnapshotController::class, 'bulkStore']);
     Route::apiResource('transactions', TransactionController::class);
 });

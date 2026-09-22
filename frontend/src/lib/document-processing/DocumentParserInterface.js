@@ -2,7 +2,7 @@
  * DocumentParserInterface
  * Base class/interface for provider-specific parsers.
  */
-export default class DocumentParserInterface {
+export class DocumentParserInterface {
   /**
    * Parse the raw extracted text into an intermediate format.
    * @param {string} text Raw text extracted from PDF

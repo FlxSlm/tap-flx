@@ -1,20 +1,19 @@
 export class ValidationAndConfidence {
   /**
-   * Evaluate a normalized transaction against Hard Validation rules and Confidence Scoring.
+   * Evaluate a normalized data against Hard Validation rules and Confidence Scoring.
    * 
-   * Scoring (Total = 100):
-   * - Symbol = 20
-   * - Transaction Date = 15
-   * - Transaction Type = 15
-   * - Quantity = 15
-   * - Price = 15
-   * - Total = 10
-   * - Arithmetic & Provider Consistency = 10
-   * 
-   * @param {Object} transaction Canonical transaction data
+   * @param {Object} data Canonical transaction or snapshot data
+   * @param {String} profile 'transaction' or 'snapshot'
    * @returns {Object} Evaluation result { score, status, isHardValidationPass, errors }
    */
-  static evaluate(transaction) {
+  static evaluate(data, profile = 'transaction') {
+    if (profile === 'snapshot') {
+      return this._evaluateSnapshot(data);
+    }
+    return this._evaluateTransaction(data);
+  }
+
+  static _evaluateTransaction(transaction) {
     let score = 0;
     let isHardValidationPass = true;
     const errors = [];
@@ -45,11 +44,9 @@ export class ValidationAndConfidence {
     }
 
     // 4. Quantity (15)
-    // Note: Some transactions like FEE might have 0 quantity, but we enforce > 0 for BUY/SELL
     if (transaction.quantity !== undefined && transaction.quantity !== null && transaction.quantity > 0) {
       score += 15;
     } else if (transaction.type === 'FEE' || transaction.type === 'DEPOSIT' || transaction.type === 'WITHDRAWAL') {
-      // Allow 0 quantity for non-asset transactions
       score += 15;
     } else {
       isHardValidationPass = false;
@@ -77,18 +74,16 @@ export class ValidationAndConfidence {
       const calculatedTotal = transaction.quantity * transaction.price;
       const difference = Math.abs(calculatedTotal - transaction.total_amount);
       
-      // Allow up to 5% difference to account for fees/taxes embedded in total_amount
-      if (calculatedTotal === 0 || (difference / calculatedTotal) <= 0.05) {
+      // Allow up to 10% difference to account for fees/taxes embedded in total_amount
+      if (calculatedTotal === 0 || (difference / calculatedTotal) <= 0.10) {
         score += 10;
       } else {
         errors.push('Arithmetic inconsistency: Qty * Price differs significantly from Total');
       }
     } else {
-      // Automatic 10 points for non-BUY/SELL where this doesn't apply strictly
       score += 10; 
     }
 
-    // Determine status
     let status = 'REVIEW';
     if (!isHardValidationPass || score < 70) {
       status = 'REJECT';
@@ -96,11 +91,59 @@ export class ValidationAndConfidence {
       status = 'AUTO ACCEPT';
     }
 
-    return {
-      score,
-      status,
-      isHardValidationPass,
-      errors
-    };
+    return { score, status, isHardValidationPass, errors };
+  }
+
+  static _evaluateSnapshot(snapshot) {
+    let score = 0;
+    let isHardValidationPass = true;
+    const errors = [];
+
+    // 1. Symbol (25)
+    if (snapshot.symbol && typeof snapshot.symbol === 'string' && snapshot.symbol.trim().length > 0) {
+      score += 25;
+    } else {
+      isHardValidationPass = false;
+      errors.push('Missing or invalid symbol');
+    }
+
+    // 2. As Of Date (20)
+    if (snapshot.as_of_date && !isNaN(Date.parse(snapshot.as_of_date))) {
+      score += 20;
+    } else {
+      isHardValidationPass = false;
+      errors.push('Missing or invalid as_of_date');
+    }
+
+    // 3. Quantity (25)
+    if (snapshot.quantity !== undefined && snapshot.quantity !== null) {
+      score += 25;
+    } else {
+      isHardValidationPass = false;
+      errors.push('Invalid quantity');
+    }
+
+    // 4. Market Value (20)
+    if (snapshot.market_value !== undefined && snapshot.market_value !== null) {
+      score += 20;
+    } else {
+      errors.push('Missing market_value');
+    }
+    
+    // 5. Average Price (10)
+    if (snapshot.average_price !== undefined && snapshot.average_price !== null) {
+      score += 10;
+    } else {
+      errors.push('Missing average_price');
+    }
+
+    let status = 'REVIEW';
+    if (!isHardValidationPass || score < 70) {
+      status = 'REJECT';
+    } else if (score >= 90) {
+      status = 'AUTO ACCEPT';
+    }
+
+    return { score, status, isHardValidationPass, errors };
   }
 }

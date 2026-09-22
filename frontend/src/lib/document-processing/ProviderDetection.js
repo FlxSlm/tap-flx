@@ -1,29 +1,39 @@
 export class ProviderDetection {
-  /**
-   * Detect the provider based on the text content of the PDF.
-   * @param {string} text 
-   * @returns {string|null} Provider name ('Stockbit', 'Pluang', 'BIONS') or null if unknown
-   */
   static detect(text) {
-    if (!text) return null;
+    if (!text) return { provider: 'UNKNOWN', type: 'UNKNOWN', confidence: 0 };
     
     const upperText = text.toUpperCase();
     
-    // Stockbit detection: mentions Stockbit Sekuritas
+    // 1. Stockbit
     if (upperText.includes('STOCKBIT') || upperText.includes('PT STOCKBIT SEKURITAS')) {
-      return 'Stockbit';
+      if (upperText.includes('STATEMENT OF ACCOUNT')) {
+        return { provider: 'STOCKBIT', type: 'SOA', confidence: 100 };
+      }
+      if (upperText.includes('TRADE CONFIRMATION')) {
+        return { provider: 'STOCKBIT', type: 'TC', confidence: 100 };
+      }
+      return { provider: 'STOCKBIT', type: 'UNKNOWN', confidence: 50 };
     }
     
-    // Pluang detection: mentions Pluang or PT Bumi Santosa Cemerlang
-    if (upperText.includes('PLUANG') || upperText.includes('BUMI SANTOSA CEMERLANG')) {
-      return 'Pluang';
+    // 2. Pluang
+    if (upperText.includes('PLUANG') || upperText.includes('BUMI SANTOSA CEMERLANG') || upperText.includes('CRYPTO ASSETS MONTHLY PORTFOLIO SUMMARY')) {
+      return { provider: 'PLUANG', type: 'SOA', confidence: 100 };
     }
     
-    // BIONS detection: mentions BIONS or BNI Sekuritas
+    // 3. BIONS (BNI Sekuritas)
     if (upperText.includes('BIONS') || upperText.includes('BNI SEKURITAS')) {
-      return 'BIONS';
+      if (upperText.includes('TRADE CONFIRMATION')) {
+        return { provider: 'BIONS', type: 'TC', confidence: 100 };
+      }
+      if (upperText.includes('CLIENT STATEMENT')) {
+        return { provider: 'BIONS', type: 'SOA', confidence: 100 };
+      }
+      if (upperText.includes('CORPORATE ACTION ADVICE')) {
+        return { provider: 'BIONS', type: 'CA', confidence: 100 };
+      }
+      return { provider: 'BIONS', type: 'UNKNOWN', confidence: 50 };
     }
     
-    return null;
+    return { provider: 'UNKNOWN', type: 'UNKNOWN', confidence: 0 };
   }
 }
