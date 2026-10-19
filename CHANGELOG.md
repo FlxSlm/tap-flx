@@ -19,3 +19,11 @@
 - Added `/process-document` React UI page for document preview and bulk import.
 - Added `POST /api/transactions/bulk` backend endpoint.
 - Added frontend unit tests (Vitest) and backend feature tests.
+
+## 2026-10-20
+- Prepared repository documentation and local setup instructions for GitHub.
+- Added frontend environment example and configurable VITE_API_URL with localhost fallback.
+- Updated backend environment example for frontend CORS and Sanctum domains.
+- Expanded ignore rules for credentials, private keys, and local database files.
+- Verified 11 frontend tests, 14 backend tests (34 assertions), frontend build, and lint (10 existing warnings).
+- Documented pending GitHub remote and privacy confirmation for PDF fixtures already in Git history.

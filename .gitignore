@@ -6,6 +6,17 @@
 .env
 .env.*
 !.env.example
+auth.json
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.sql
 
 # ----- Node / npm -----
 node_modules/
@@ -24,6 +35,10 @@ backend/storage/framework/cache/data/*
 backend/storage/framework/sessions/*
 backend/storage/framework/views/*
 backend/bootstrap/cache/*
+!backend/bootstrap/cache/.gitignore
+!backend/storage/framework/cache/data/.gitignore
+!backend/storage/framework/sessions/.gitignore
+!backend/storage/framework/views/.gitignore
 
 # ----- Vite / Build -----
 dist/

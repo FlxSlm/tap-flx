@@ -42,3 +42,10 @@ COMPLETE ✅
 
 ## Next Task
 PENDING / NEXT INCREMENT — Do not implement yet. Increment 3 (Automatic Mode) will be next.
+
+## Repository Preparation — 2026-10-20
+- [x] Lengkapi README dan panduan koneksi GitHub.
+- [x] Lengkapi environment example dan konfigurasi URL API frontend.
+- [x] Perkuat ignore file lokal/sensitif.
+- [x] Verifikasi frontend tests, backend tests, lint, dan build.
+- [ ] Konfirmasi PDF fixture boleh diunggah dan tentukan URL repository tujuan sebelum push.

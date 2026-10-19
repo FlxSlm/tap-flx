@@ -66,3 +66,12 @@ Increment 3 will involve Gmail OAuth 2.0, n8n, email trigger/filter, and integra
 - [x] CHANGELOG.md diperbarui
 - [x] Git commit dibuat
 - [x] Working tree bersih
+
+## GitHub Preparation — 2026-10-20
+- README instalasi lokal dan docs/GITHUB_SETUP.md ditambahkan/diperbarui.
+- Contoh environment frontend/backend dilengkapi untuk konfigurasi API dan Sanctum.
+- .gitignore diperketat untuk credential, private key, dan database lokal.
+- Verifikasi: frontend 11 tests PASS; backend 14 tests PASS (34 assertions); build PASS; lint selesai dengan 10 warning existing; build memperingatkan ukuran bundle.
+- git diff --check PASS. Tidak ada pola umum token GitHub/AWS atau private key yang ditemukan dalam file teks tracked pada pemeriksaan terbatas; ini bukan audit menyeluruh atas riwayat atau PDF.
+- Push belum dilakukan: URL repository tujuan dan kelayakan publikasi PDF yang sudah masuk riwayat Git belum dikonfirmasi.
+- Increment tetap pada tahap 2; tidak ada implementasi increment berikutnya.
