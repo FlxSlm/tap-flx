@@ -54,3 +54,6 @@ PENDING / NEXT INCREMENT — Do not implement yet. Increment 3 (Automatic Mode) 
 - Instruksi pemilik: jangan unggah file PDF, termasuk dari riwayat Git.
 - Tujuan: https://github.com/FlxSlm/tap-flx.git.
 - Persiapan mencakup backup lokal, pembersihan riwayat PDF, dan konfigurasi remote; push tetap langkah terpisah.
+- [x] Konfirmasi pemilik: PDF tidak boleh diunggah; riwayat branch proyek dibersihkan, PDF lokal tetap ada.
+- [x] Konfigurasi dan verifikasi origin; integrasikan README awal main GitHub tanpa force push.
+- [ ] Push main saat diminta pemilik.

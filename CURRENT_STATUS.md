@@ -80,3 +80,11 @@ Increment 3 will involve Gmail OAuth 2.0, n8n, email trigger/filter, and integra
 - Pemilik melarang upload PDF. Semua PDF dikecualikan dari Git dan riwayat branch untuk GitHub dibersihkan dari PDF.
 - PDF lokal dipertahankan; backup riwayat sebelum pembersihan ada di .local-backups/ (diabaikan Git, jangan diunggah).
 - Repository tujuan: https://github.com/FlxSlm/tap-flx.git.
+
+## Final GitHub Preparation — 2026-10-20
+- Remote origin dikonfigurasi dan akses GitHub berhasil diverifikasi.
+- Branch tujuan adalah main; commit awal README di GitHub diintegrasikan tanpa force push.
+- Keenam PDF lokal dipertahankan dan diabaikan Git; tidak ada PDF dalam riwayat branch proyek yang akan di-push.
+- Backup riwayat lama berada di .local-backups/before-pdf-cleanup.bundle (jangan diunggah).
+- Catatan persiapan awal yang menyebut URL/PDF belum dikonfirmasi sudah digantikan keputusan pemilik di atas.
+- Push belum dilakukan karena permintaan saat ini adalah persiapan repository.

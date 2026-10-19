@@ -1,6 +1,6 @@
 # Persiapan GitHub
 
-Repository lokal menggunakan branch `master`. Repository tujuan: `https://github.com/FlxSlm/tap-flx.git`.
+Repository lokal menggunakan branch `main`. Repository tujuan: `https://github.com/FlxSlm/tap-flx.git`.
 
 ## Sebelum push
 
@@ -12,12 +12,11 @@ Repository lokal menggunakan branch `master`. Repository tujuan: `https://github
 
 ## Menghubungkan repository
 
-Buat repository GitHub kosong di akun tujuan tanpa inisialisasi README, license, atau `.gitignore`. Dari root proyek, ganti URL contoh dengan repository milik Anda:
+Remote origin sudah dikonfigurasi. Commit awal README pada main GitHub diintegrasikan ke riwayat lokal. Untuk mengunggah dari root proyek:
 
 ```powershell
-git remote add origin https://github.com/FlxSlm/tap-flx.git
 git remote -v
-git push -u origin master
+git push -u origin main
 ```
 
 Jika `origin` sudah ada, periksa tujuannya sebelum mengubahnya. Jangan gunakan force push. Jika tujuan sudah memiliki commit, periksa dan integrasikan riwayatnya sebelum push.
