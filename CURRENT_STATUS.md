@@ -75,3 +75,8 @@ Increment 3 will involve Gmail OAuth 2.0, n8n, email trigger/filter, and integra
 - git diff --check PASS. Tidak ada pola umum token GitHub/AWS atau private key yang ditemukan dalam file teks tracked pada pemeriksaan terbatas; ini bukan audit menyeluruh atas riwayat atau PDF.
 - Push belum dilakukan: URL repository tujuan dan kelayakan publikasi PDF yang sudah masuk riwayat Git belum dikonfirmasi.
 - Increment tetap pada tahap 2; tidak ada implementasi increment berikutnya.
+
+## PDF Publication Decision — 2026-10-20
+- Pemilik melarang upload PDF. Semua PDF dikecualikan dari Git dan riwayat branch untuk GitHub dibersihkan dari PDF.
+- PDF lokal dipertahankan; backup riwayat sebelum pembersihan ada di .local-backups/ (diabaikan Git, jangan diunggah).
+- Repository tujuan: https://github.com/FlxSlm/tap-flx.git.

@@ -27,3 +27,4 @@
 - Expanded ignore rules for credentials, private keys, and local database files.
 - Verified 11 frontend tests, 14 backend tests (34 assertions), frontend build, and lint (10 existing warnings).
 - Documented pending GitHub remote and privacy confirmation for PDF fixtures already in Git history.
+- Owner requested excluding all PDFs from GitHub, including historical commits; preserve local PDFs and keep a private local history backup.

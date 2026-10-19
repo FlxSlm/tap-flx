@@ -49,3 +49,8 @@ PENDING / NEXT INCREMENT — Do not implement yet. Increment 3 (Automatic Mode) 
 - [x] Perkuat ignore file lokal/sensitif.
 - [x] Verifikasi frontend tests, backend tests, lint, dan build.
 - [ ] Konfirmasi PDF fixture boleh diunggah dan tentukan URL repository tujuan sebelum push.
+
+## PDF Exclusion — 2026-10-20
+- Instruksi pemilik: jangan unggah file PDF, termasuk dari riwayat Git.
+- Tujuan: https://github.com/FlxSlm/tap-flx.git.
+- Persiapan mencakup backup lokal, pembersihan riwayat PDF, dan konfigurasi remote; push tetap langkah terpisah.
