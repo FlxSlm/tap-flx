@@ -1,4 +1,5 @@
 import { DocumentParserInterface } from '../DocumentParserInterface';
+import { plainNumber, sumNumbers } from '../SourceNumbers';
 
 export class BionsTradeConfirmationParser extends DocumentParserInterface {
   parse(text) {
@@ -36,6 +37,14 @@ export class BionsTradeConfirmationParser extends DocumentParserInterface {
       const totalFee = comm + pph + vat + sellTax + levy + vatLevy;
 
       transactions.push({
+        external_identifier: match[1],
+        exact_values: {
+          quantity: plainNumber(match[7]), price: plainNumber(match[6]),
+          gross_amount: plainNumber(match[8]), net_amount: plainNumber(match[15]),
+          total_amount: plainNumber(match[15]),
+          fee_amount: sumNumbers(match[9], match[13]),
+          tax_amount: sumNumbers(match[10], match[11], match[12], match[14]),
+        },
         type: type,
         symbol: symbol,
         quantity: quantity,
@@ -65,12 +74,18 @@ export class BionsTradeConfirmationParser extends DocumentParserInterface {
       }
 
       return {
+        ...data.exact_values,
+        exact_values: data.exact_values,
+        external_identifier: data.external_identifier,
+        amount_semantics: 'NET',
+        date_precision: 'DATE',
         type: data.type,
         symbol: data.symbol,
         quantity: data.quantity,
         price: data.price,
         total_amount: data.netAmount, // Canonical uses Net Amount based on spec
-        fee_amount: data.fee,
+        fee_amount: data.exact_values.fee_amount,
+        tax_amount: data.exact_values.tax_amount,
         transaction_date: isoDate,
         currency: 'IDR'
       };

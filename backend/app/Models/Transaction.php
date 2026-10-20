@@ -20,6 +20,9 @@ class Transaction extends Model
         'external_identifier',
         'transaction_hash',
         'source_metadata',
+        'gross_amount', 'net_amount', 'tax_amount', 'settlement_amount',
+        'amount_semantics', 'unit', 'date_precision', 'reference_quantity',
+        'imported_at', 'validation_status', 'review_status', 'revision',
     ];
 
     protected $casts = [
@@ -29,6 +32,12 @@ class Transaction extends Model
         'total_amount' => 'decimal:4',
         'fee_amount' => 'decimal:4',
         'source_metadata' => 'array',
+        'gross_amount' => 'decimal:4',
+        'net_amount' => 'decimal:4',
+        'tax_amount' => 'decimal:4',
+        'settlement_amount' => 'decimal:4',
+        'reference_quantity' => 'decimal:8',
+        'imported_at' => 'datetime',
     ];
 
     public function investmentAccount()

@@ -1,4 +1,5 @@
 import { DocumentParserInterface } from '../DocumentParserInterface';
+import { plainNumber } from '../SourceNumbers';
 
 export class BionsMonthlyStatementParser extends DocumentParserInterface {
   parse(text) {
@@ -20,6 +21,7 @@ export class BionsMonthlyStatementParser extends DocumentParserInterface {
     let match;
     while ((match = rowRegex.exec(text)) !== null) {
       snapshots.push({
+        exact_values: { quantity: plainNumber(match[2]), average_price: plainNumber(match[3]), market_price: plainNumber(match[5]), market_value: plainNumber(match[6]) },
         symbol: match[1],
         quantity: parseFloat(match[2].replace(/,/g, '')),
         average_price: parseFloat(match[3].replace(/,/g, '')),
@@ -44,6 +46,7 @@ export class BionsMonthlyStatementParser extends DocumentParserInterface {
       }
 
       return {
+        exact_values: data.exact_values,
         symbol: data.symbol,
         quantity: data.quantity,
         average_price: data.average_price,

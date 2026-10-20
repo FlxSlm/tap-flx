@@ -110,10 +110,10 @@ const Transactions = () => {
 
     const payload = {
       ...form,
-      quantity: parseFloat(form.quantity) || 0,
-      price: parseFloat(form.price) || 0,
-      total_amount: parseFloat(form.total_amount) || 0,
-      fee_amount: form.fee_amount ? parseFloat(form.fee_amount) : null,
+      quantity: form.quantity === '' ? null : String(form.quantity),
+      price: form.price === '' ? null : String(form.price),
+      total_amount: form.total_amount === '' ? null : String(form.total_amount),
+      fee_amount: form.fee_amount === '' ? null : String(form.fee_amount),
       asset_name: form.asset_name || null,
     };
 
@@ -201,6 +201,7 @@ const Transactions = () => {
       {showForm && (
         <div className="tx-form">
           <h2>{editingId ? 'Edit Transaction' : 'New Transaction'}</h2>
+          {Object.keys(formErrors).length > 0 && <div role="alert">{Object.values(formErrors).flat().join(' ')}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-group">
@@ -235,12 +236,12 @@ const Transactions = () => {
               </div>
               <div className="form-group">
                 <label>Quantity *</label>
-                <input type="number" name="quantity" value={form.quantity} onChange={handleChange} step="any" required />
+                <input type="number" name="quantity" value={form.quantity} onChange={handleChange} step="any" required={['BUY', 'SELL'].includes(form.type)} />
                 {formErrors.quantity && <span style={{ color: '#ef4444', fontSize: 12 }}>{formErrors.quantity[0]}</span>}
               </div>
               <div className="form-group">
                 <label>Price *</label>
-                <input type="number" name="price" value={form.price} onChange={handleChange} step="any" required />
+                <input type="number" name="price" value={form.price} onChange={handleChange} step="any" required={['BUY', 'SELL'].includes(form.type)} />
                 {formErrors.price && <span style={{ color: '#ef4444', fontSize: 12 }}>{formErrors.price[0]}</span>}
               </div>
               <div className="form-group">

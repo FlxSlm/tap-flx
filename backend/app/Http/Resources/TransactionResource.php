@@ -31,6 +31,18 @@ class TransactionResource extends JsonResource
             'source_metadata' => $this->source_metadata,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'gross_amount' => $this->gross_amount,
+            'net_amount' => $this->net_amount,
+            'tax_amount' => $this->tax_amount,
+            'settlement_amount' => $this->settlement_amount,
+            'amount_semantics' => $this->amount_semantics,
+            'unit' => $this->unit,
+            'date_precision' => $this->date_precision,
+            'reference_quantity' => $this->reference_quantity,
+            'imported_at' => $this->imported_at,
+            'validation_status' => $this->validation_status,
+            'review_status' => $this->review_status,
+            'revision' => $this->revision,
         ];
     }
 }

@@ -1,4 +1,5 @@
 import { DocumentParserInterface } from '../DocumentParserInterface';
+import { plainNumber, providerDate } from '../SourceNumbers';
 
 export class BionsCorporateActionParser extends DocumentParserInterface {
   parse(text) {
@@ -19,6 +20,7 @@ export class BionsCorporateActionParser extends DocumentParserInterface {
     let match;
     while ((match = rowRegex.exec(text)) !== null) {
       transactions.push({
+        exact_values: { reference_quantity: plainNumber(match[2]), gross_amount: plainNumber(match[3]), tax_amount: plainNumber(match[5]), net_amount: plainNumber(match[6]), total_amount: plainNumber(match[6]) },
         type: 'DIVIDEND',
         symbol: match[1],
         quantity: parseFloat(match[2].replace(/,/g, '')), // balance
@@ -40,20 +42,24 @@ export class BionsCorporateActionParser extends DocumentParserInterface {
         const dateParts = data.date.split('-');
         if (dateParts.length === 3) {
           const year = dateParts[2].length === 2 ? `20${dateParts[2]}` : dateParts[2];
-          const d = new Date(`${dateParts[0]}-${dateParts[1]}-${year}`);
-          if (!isNaN(d)) {
-            isoDate = d.toISOString().split('T')[0] + ' 00:00:00';
-          }
+          const date = providerDate(`${dateParts[0]}-${dateParts[1]}-${year}`, 'month-name');
+          isoDate = date ? date + ' 00:00:00' : null;
         }
       }
 
       return {
+        ...data.exact_values,
+        exact_values: data.exact_values,
+        amount_semantics: 'NET',
+        date_precision: 'DATE',
         type: data.type,
         symbol: data.symbol,
-        quantity: data.quantity, // reference quantity
-        price: 0, // no specific price for dividend per share in transaction ledger, only total
+        quantity: null,
+        reference_quantity: data.exact_values.reference_quantity,
+        price: null,
         total_amount: data.netAmount,
-        fee_amount: data.taxAmount,
+        fee_amount: null,
+        tax_amount: data.exact_values.tax_amount,
         transaction_date: isoDate,
         currency: 'IDR'
       };

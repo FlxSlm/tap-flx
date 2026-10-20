@@ -4,14 +4,7 @@ import { PdfExtractor } from '../lib/document-processing/PdfExtractor';
 import { ProviderDetection } from '../lib/document-processing/ProviderDetection';
 import { ValidationAndConfidence } from '../lib/document-processing/ValidationAndConfidence';
 
-// Parsers
-import { BionsTradeConfirmationParser } from '../lib/document-processing/parsers/BionsTradeConfirmationParser';
-import { BionsMonthlyStatementParser } from '../lib/document-processing/parsers/BionsMonthlyStatementParser';
-import { BionsCorporateActionParser } from '../lib/document-processing/parsers/BionsCorporateActionParser';
-import { StockbitTradeConfirmationParser } from '../lib/document-processing/parsers/StockbitTradeConfirmationParser';
-import { StockbitMonthlyStatementParser } from '../lib/document-processing/parsers/StockbitMonthlyStatementParser';
-import { PluangMonthlyStatementParser } from '../lib/document-processing/parsers/PluangMonthlyStatementParser';
-
+import { sourceParser, buildSourceImport } from '../lib/document-processing/SourceContract';
 import './DocumentProcessing.css';
 
 const DocumentProcessing = () => {
@@ -19,6 +12,8 @@ const DocumentProcessing = () => {
   const [selectedAccountId, setSelectedAccountId] = useState('');
   
   const [file, setFile] = useState(null);
+  const [documentHash, setDocumentHash] = useState(null);
+  const [batchKey, setBatchKey] = useState(null);
   const [processingState, setProcessingState] = useState('IDLE'); // IDLE, EXTRACTING, PARSING, DONE, ERROR
   const [errorMessage, setErrorMessage] = useState('');
   
@@ -30,17 +25,14 @@ const DocumentProcessing = () => {
   const [importResult, setImportResult] = useState(null);
 
   useEffect(() => {
-    fetchAccounts();
+    let active = true;
+    axios.get('/api/investment-accounts').then(res => {
+      if (active) setAccounts(res.data.data);
+    }).catch(() => {
+      if (active) setErrorMessage('Failed to load investment accounts.');
+    });
+    return () => { active = false; };
   }, []);
-
-  const fetchAccounts = async () => {
-    try {
-      const res = await axios.get('/api/investment-accounts');
-      setAccounts(res.data.data);
-    } catch (err) {
-      console.error('Failed to load accounts', err);
-    }
-  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -51,6 +43,8 @@ const DocumentProcessing = () => {
 
   const resetState = () => {
     setProcessingState('IDLE');
+    setDocumentHash(null);
+    setBatchKey(null);
     setErrorMessage('');
     setDetectedProvider(null);
     setPreviewData([]);
@@ -64,7 +58,8 @@ const DocumentProcessing = () => {
     setProcessingState('EXTRACTING');
     
     try {
-      const text = await PdfExtractor.extractTextFromFile(file);
+      const { text, documentHash: hash } = await PdfExtractor.extractDocument(file);
+      setDocumentHash(hash);
       
       setProcessingState('PARSING');
       const detection = ProviderDetection.detect(text);
@@ -74,30 +69,8 @@ const DocumentProcessing = () => {
       
       setDetectedProvider(detection);
       
-      let parser = null;
-      let profile = 'transaction';
-
-      if (detection.provider === 'STOCKBIT' && detection.type === 'TC') {
-        parser = new StockbitTradeConfirmationParser();
-        profile = 'transaction';
-      } else if (detection.provider === 'STOCKBIT' && detection.type === 'SOA') {
-        parser = new StockbitMonthlyStatementParser();
-        profile = 'snapshot';
-      } else if (detection.provider === 'BIONS' && detection.type === 'TC') {
-        parser = new BionsTradeConfirmationParser();
-        profile = 'transaction';
-      } else if (detection.provider === 'BIONS' && detection.type === 'SOA') {
-        parser = new BionsMonthlyStatementParser();
-        profile = 'snapshot';
-      } else if (detection.provider === 'BIONS' && detection.type === 'CA') {
-        parser = new BionsCorporateActionParser();
-        profile = 'transaction';
-      } else if (detection.provider === 'PLUANG' && detection.type === 'SOA') {
-        parser = new PluangMonthlyStatementParser();
-        profile = 'snapshot';
-      } else {
-        throw new Error(`No parser implemented for ${detection.provider} ${detection.type}`);
-      }
+      const { parser } = sourceParser(detection.provider, detection.type);
+      const profile = detection.type === 'SOA' ? 'snapshot' : 'transaction';
 
       const parsedData = parser.parse(text);
       if (parsedData.length === 0) {
@@ -132,12 +105,11 @@ const DocumentProcessing = () => {
       setProcessingState('DONE');
 
     } catch (err) {
-      console.error(err);
       setProcessingState('ERROR');
       if (err.message === 'PasswordProtected') {
         setErrorMessage('PDF is password protected. Password-protected PDFs are not fully supported in this prototype yet.');
       } else {
-        setErrorMessage(err.message || 'An error occurred during processing.');
+        setErrorMessage('Document processing failed. Check the format and supported source.');
       }
     }
   };
@@ -147,6 +119,8 @@ const DocumentProcessing = () => {
     if (newSelected.has(id)) newSelected.delete(id);
     else newSelected.add(id);
     setSelectedRows(newSelected);
+    setBatchKey(null);
+    setImportResult(null);
   };
 
   const handleImport = async () => {
@@ -162,51 +136,26 @@ const DocumentProcessing = () => {
     setImportResult(null);
 
     try {
-      if (detectedProvider.type === 'SOA') {
-        // Bulk import snapshot
-        const items = rowsToImport.map(row => row.data);
-        // We only have one date for the snapshot, take from the first item
-        const asOfDate = items[0].as_of_date;
-
-        const payload = {
-          snapshots: [
-            {
-              investment_account_id: selectedAccountId,
-              as_of_date: asOfDate,
-              provider: detectedProvider.provider,
-              document_type: detectedProvider.type,
-              items: items
-            }
-          ]
-        };
-
-        const res = await axios.post('/api/portfolio-snapshots/bulk', payload);
-        setImportResult({
-          success: true,
-          successfulCount: res.data.successful[0]?.items?.length || 0,
-          failedCount: res.data.failed.length,
-          failedDetails: res.data.failed
-        });
-
-      } else {
-        // Bulk import transactions
-        const payload = rowsToImport.map(row => ({
-          ...row.data,
-          investment_account_id: selectedAccountId
-        }));
-
-        const res = await axios.post('/api/transactions/bulk', { transactions: payload });
-        setImportResult({
-          success: true,
-          successfulCount: res.data.successful.length,
-          failedCount: res.data.failed.length,
-          failedDetails: res.data.failed
-        });
+      const account = accounts.find(a => String(a.id) === String(selectedAccountId));
+      if (account?.platform_code?.toUpperCase() !== detectedProvider.provider) {
+        throw new Error('Selected account does not match the document provider.');
       }
+      const key = batchKey ?? crypto.randomUUID();
+      setBatchKey(key);
+      const payload = buildSourceImport({ accountId: selectedAccountId, detection: detectedProvider, documentHash, batchKey: key, previewData, selectedRows });
+      const res = await axios.post('/api/source-imports', payload);
+      const results = res.data.results;
+      setImportResult({
+        success: true,
+        successfulCount: results.filter(r => ['CREATED', 'LINKED_EXISTING', 'REPLAYED'].includes(r.status)).length,
+        failedCount: results.filter(r => ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).length,
+        failedDetails: results.filter(r => ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).map(r => ({ reason: r.status })),
+        replayed: res.data.replayed,
+      });
     } catch (err) {
       setImportResult({
         success: false,
-        message: err.response?.data?.message || 'Failed to import data.'
+        message: err.response?.data?.message || err.message || 'Failed to import data.'
       });
     } finally {
       setImporting(false);
@@ -245,7 +194,7 @@ const DocumentProcessing = () => {
                   type="checkbox" 
                   checked={selectedRows.has(row.id)}
                   onChange={() => toggleRow(row.id)}
-                  disabled={row.status === 'REJECT'}
+                  disabled={row.status === 'REJECT' || importing}
                 />
               </td>
               <td><span className={getStatusBadgeClass(row.status)}>{row.status}</span></td>
@@ -297,7 +246,7 @@ const DocumentProcessing = () => {
                   type="checkbox" 
                   checked={selectedRows.has(row.id)}
                   onChange={() => toggleRow(row.id)}
-                  disabled={row.status === 'REJECT'}
+                  disabled={row.status === 'REJECT' || importing}
                 />
               </td>
               <td><span className={getStatusBadgeClass(row.status)}>{row.status}</span></td>
@@ -334,8 +283,9 @@ const DocumentProcessing = () => {
         <div className="form-group">
           <label>1. Select Investment Account *</label>
           <select 
+            disabled={importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
             value={selectedAccountId} 
-            onChange={(e) => setSelectedAccountId(e.target.value)}
+            onChange={(e) => { setSelectedAccountId(e.target.value); setBatchKey(null); setImportResult(null); }}
             className="input-field"
           >
             <option value="">-- Choose Account --</option>
@@ -347,13 +297,13 @@ const DocumentProcessing = () => {
         
         <div className="form-group mt-3">
           <label>2. Upload Document (PDF)</label>
-          <input type="file" accept="application/pdf" onChange={handleFileChange} className="input-field" />
+          <input type="file" accept="application/pdf" disabled={importing || processingState === 'EXTRACTING' || processingState === 'PARSING'} onChange={handleFileChange} className="input-field" />
         </div>
 
         <button 
           className="btn btn-primary mt-3" 
           onClick={processDocument} 
-          disabled={!file || processingState === 'EXTRACTING' || processingState === 'PARSING'}
+          disabled={!file || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
         >
           {processingState === 'EXTRACTING' ? 'Extracting Text...' : 
            processingState === 'PARSING' ? 'Parsing Data...' : 'Process Document'}
@@ -375,6 +325,7 @@ const DocumentProcessing = () => {
             </span>
           </div>
 
+          <p>Snapshot coverage remains UNKNOWN; selecting only some positions marks it PARTIAL. Missing amounts remain unavailable.</p>
           <div className="table-responsive">
             {detectedProvider.type === 'SOA' ? renderSnapshotTable() : renderTransactionTable()}
           </div>
@@ -393,9 +344,9 @@ const DocumentProcessing = () => {
             <div className={`mt-3 ${importResult.success ? 'success-box' : 'error-box'}`}>
               {importResult.success ? (
                 <>
-                  <p><strong>Import Complete</strong></p>
-                  <p>Successfully inserted rows: {importResult.successfulCount}</p>
-                  <p>Failed / Duplicates: {importResult.failedCount}</p>
+                  <p><strong>{importResult.replayed ? 'Import already recorded' : 'Import processed'}</strong></p>
+                  <p>Created / linked / replayed observations: {importResult.successfulCount}</p>
+                  <p>Needs review / conflicting observations: {importResult.failedCount}</p>
                   {importResult.failedDetails && importResult.failedDetails.length > 0 && (
                     <ul>
                       {importResult.failedDetails.map((f, i) => (

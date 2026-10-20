@@ -46,7 +46,7 @@ export class ValidationAndConfidence {
     // 4. Quantity (15)
     if (transaction.quantity !== undefined && transaction.quantity !== null && transaction.quantity > 0) {
       score += 15;
-    } else if (transaction.type === 'FEE' || transaction.type === 'DEPOSIT' || transaction.type === 'WITHDRAWAL') {
+    } else if (['FEE', 'DEPOSIT', 'WITHDRAWAL', 'DIVIDEND'].includes(transaction.type) && transaction.quantity == null) {
       score += 15;
     } else {
       isHardValidationPass = false;
@@ -54,7 +54,9 @@ export class ValidationAndConfidence {
     }
 
     // 5. Price (15)
-    if (transaction.price !== undefined && transaction.price !== null && transaction.price >= 0) {
+    if (transaction.type === 'DIVIDEND' && transaction.price == null) {
+      score += 15;
+    } else if (transaction.price !== undefined && transaction.price !== null && Number.isFinite(Number(transaction.price)) && transaction.price >= 0) {
       score += 15;
     } else {
       isHardValidationPass = false;
@@ -72,12 +74,16 @@ export class ValidationAndConfidence {
     // 7. Arithmetic Consistency (10)
     if (isHardValidationPass && (transaction.type === 'BUY' || transaction.type === 'SELL')) {
       const calculatedTotal = transaction.quantity * transaction.price;
-      const difference = Math.abs(calculatedTotal - transaction.total_amount);
+      const compareAmount = transaction.gross_amount ?? (transaction.amount_semantics === 'NET' ? null : transaction.total_amount);
+      const difference = compareAmount == null ? null : Math.abs(calculatedTotal - Number(compareAmount));
       
-      // Allow up to 10% difference to account for fees/taxes embedded in total_amount
-      if (calculatedTotal === 0 || (difference / calculatedTotal) <= 0.10) {
+      // Client feedback only. Net totals must never be compared as if they were gross.
+      if (difference == null) {
+        errors.push('Gross amount unavailable; arithmetic not verified');
+      } else if (difference <= Math.max(0.0001, Math.abs(calculatedTotal) * Number.EPSILON * 4)) {
         score += 10;
       } else {
+        isHardValidationPass = false;
         errors.push('Arithmetic inconsistency: Qty * Price differs significantly from Total');
       }
     } else {
@@ -116,7 +122,7 @@ export class ValidationAndConfidence {
     }
 
     // 3. Quantity (25)
-    if (snapshot.quantity !== undefined && snapshot.quantity !== null) {
+    if (snapshot.quantity !== undefined && snapshot.quantity !== null && Number.isFinite(Number(snapshot.quantity)) && snapshot.quantity >= 0) {
       score += 25;
     } else {
       isHardValidationPass = false;

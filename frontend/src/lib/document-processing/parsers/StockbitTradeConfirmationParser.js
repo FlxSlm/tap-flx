@@ -1,4 +1,5 @@
 import { DocumentParserInterface } from '../DocumentParserInterface';
+import { plainNumber, providerDate } from '../SourceNumbers';
 
 export class StockbitTradeConfirmationParser extends DocumentParserInterface {
   parse(text) {
@@ -34,6 +35,8 @@ export class StockbitTradeConfirmationParser extends DocumentParserInterface {
       }
 
       transactions.push({
+        external_identifier: match[0].match(/^\d+/)[0],
+        exact_values: { quantity: plainNumber(match[3]), price: plainNumber(match[4]), total_amount: plainNumber(type === 'BUY' ? match[5] : match[6]), gross_amount: plainNumber(type === 'BUY' ? match[5] : match[6]) },
         type: type,
         symbol: symbol,
         quantity: quantity,
@@ -53,20 +56,26 @@ export class StockbitTradeConfirmationParser extends DocumentParserInterface {
         // DD/MM/YYYY to YYYY-MM-DD
         const parts = data.date.split('/');
         if (parts.length === 3) {
-          const d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-          if (!isNaN(d)) {
-            isoDate = d.toISOString().split('T')[0] + ' 00:00:00';
-          }
+          const date = providerDate(data.date, 'numeric');
+          isoDate = date ? date + ' 00:00:00' : null;
         }
       }
 
       return {
+        exact_values: data.exact_values,
+        gross_amount: data.exact_values.gross_amount,
+        net_amount: null,
+        tax_amount: null,
+        settlement_amount: null,
+        amount_semantics: 'GROSS',
+        date_precision: 'DATE',
+        external_identifier: data.external_identifier,
         type: data.type,
         symbol: data.symbol,
         quantity: data.quantity,
         price: data.price,
         total_amount: data.total_amount,
-        fee_amount: 0, // Not available per line on Stockbit TC
+        fee_amount: null, // Document-level charges are not allocated to rows.
         transaction_date: isoDate,
         currency: 'IDR'
       };

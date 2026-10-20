@@ -1,4 +1,5 @@
 import { DocumentParserInterface } from '../DocumentParserInterface';
+import { plainNumber, providerDate } from '../SourceNumbers';
 
 export class StockbitMonthlyStatementParser extends DocumentParserInterface {
   parse(text) {
@@ -19,6 +20,7 @@ export class StockbitMonthlyStatementParser extends DocumentParserInterface {
     let match;
     while ((match = rowRegex.exec(text)) !== null) {
       snapshots.push({
+        exact_values: { quantity: plainNumber(match[2]), average_price: plainNumber(match[3]), market_price: plainNumber(match[4]), market_value: plainNumber(match[6]) },
         symbol: match[1],
         quantity: parseFloat(match[2].replace(/,/g, '')),
         average_price: parseFloat(match[3].replace(/,/g, '')),
@@ -37,14 +39,12 @@ export class StockbitMonthlyStatementParser extends DocumentParserInterface {
       if (data.date) {
         const parts = data.date.split('/');
         if (parts.length === 3) {
-          const d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-          if (!isNaN(d)) {
-            isoDate = d.toISOString().split('T')[0];
-          }
+          isoDate = providerDate(data.date, 'numeric');
         }
       }
 
       return {
+        exact_values: data.exact_values,
         symbol: data.symbol,
         quantity: data.quantity,
         average_price: data.average_price,

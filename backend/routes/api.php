@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\InvestmentAccountController;
+use App\Http\Controllers\PortfolioSnapshotController;
+use App\Http\Controllers\SourceImportController;
+use App\Http\Controllers\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\InvestmentAccountController;
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', function (Request $request) {
@@ -11,7 +13,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::get('/investment-accounts', [InvestmentAccountController::class, 'index']);
+    Route::post('/source-imports', [SourceImportController::class, 'store']);
+    Route::get('/source-imports/{batch}', [SourceImportController::class, 'show']);
     Route::post('/transactions/bulk', [TransactionController::class, 'bulkStore']);
-    Route::post('/portfolio-snapshots/bulk', [\App\Http\Controllers\PortfolioSnapshotController::class, 'bulkStore']);
+    Route::post('/portfolio-snapshots/bulk', [PortfolioSnapshotController::class, 'bulkStore']);
     Route::apiResource('transactions', TransactionController::class);
 });

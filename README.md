@@ -2,7 +2,7 @@
 
 Prototipe web integrasi data portofolio aset finansial untuk penelitian S1. Backend: Laravel 12. Frontend: React 19 + Vite. Fitur saat ini mencakup autentikasi, transaksi, dan pemrosesan dokumen Stockbit, Pluang, serta BIONS melalui Privacy Mode di browser.
 
-Automatic Mode, integrasi email, market data, dan reporting lanjutan masih dalam rencana increment berikutnya. Lihat [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) dan [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Automatic Mode, integrasi email, market data, dan reporting lanjutan masih dalam rencana tahap berikutnya. Konteks terbaru ada di [TA_Rebuild_Reconciliation](TA_Rebuild_Reconciliation/README.md); lihat [laporan Gate 1](TA_Rebuild_Reconciliation/GATE_1_IMPLEMENTATION_REPORT.md) untuk kontrak sumber, migrasi, pengujian, dan keterbatasan terkini.
 
 ## Prasyarat
 
@@ -66,7 +66,7 @@ Pengujian backend menggunakan SQLite in-memory sesuai `backend/phpunit.xml`. Uni
 - `frontend/`: UI React dan pemrosesan PDF di browser.
 - `backend/`: API Laravel, autentikasi Sanctum, migrasi, dan pengujian.
 - `docs/`: dokumentasi penelitian, spesifikasi parser, dan referensi.
-- `PROJECT_CONTEXT.md`, `DEVELOPMENT_RULES.md`, `CURRENT_STATUS.md`, `TASK.md`: konteks, aturan, dan progres pengembangan.
+- `TA_Rebuild_Reconciliation/`: target architecture, audit, kontrak sumber, dan progres controlled rebuild. Operasi Git yang mengubah state hanya dilakukan pemilik repository.
 
 ## GitHub
 

@@ -73,6 +73,7 @@ logs/
 .local-backups/
 *.pdf
 *.PDF
+*.[pP][dD][fF]
 *.bak
 *.tmp
 *.temp
