@@ -12,6 +12,7 @@ class PortfolioSnapshot extends Model
         'source_metadata' => 'array',
         'as_of_date' => 'date',
         'coverage_confirmed' => 'boolean',
+        'parsed_item_count' => 'integer',
     ];
 
     public function items()

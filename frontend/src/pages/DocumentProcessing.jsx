@@ -6,33 +6,42 @@ import { ValidationAndConfidence } from '../lib/document-processing/ValidationAn
 
 import { sourceParser, buildSourceImport } from '../lib/document-processing/SourceContract';
 import './DocumentProcessing.css';
+import Icon from '../ui/Icon';
+import { Badge, Notice } from '../ui/components';
+import ImportHistory from '../ui/ImportHistory';
+import { useOptionalWorkspace } from '../ui/workspace';
+import { number, safeError } from '../ui/format';
 
 const DocumentProcessing = () => {
+  const workspace = useOptionalWorkspace();
+  const previewOnly = !!workspace?.preview;
+  const previewAccounts = workspace?.preview?.accounts;
   const [accounts, setAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
-  
+
   const [file, setFile] = useState(null);
   const [documentHash, setDocumentHash] = useState(null);
   const [batchKey, setBatchKey] = useState(null);
   const [processingState, setProcessingState] = useState('IDLE'); // IDLE, EXTRACTING, PARSING, DONE, ERROR
   const [errorMessage, setErrorMessage] = useState('');
-  
+
   const [detectedProvider, setDetectedProvider] = useState(null); // { provider, type }
   const [previewData, setPreviewData] = useState([]);
   const [selectedRows, setSelectedRows] = useState(new Set());
-  
+
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
 
   useEffect(() => {
     let active = true;
-    axios.get('/api/investment-accounts').then(res => {
+    const accountRequest = previewAccounts ? Promise.resolve({ data: { data: previewAccounts } }) : axios.get('/api/investment-accounts');
+    accountRequest.then(res => {
       if (active) setAccounts(res.data.data);
     }).catch(() => {
       if (active) setErrorMessage('Failed to load investment accounts.');
     });
     return () => { active = false; };
-  }, []);
+  }, [previewAccounts]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -56,19 +65,19 @@ const DocumentProcessing = () => {
     if (!file) return;
     resetState();
     setProcessingState('EXTRACTING');
-    
+
     try {
       const { text, documentHash: hash } = await PdfExtractor.extractDocument(file);
       setDocumentHash(hash);
-      
+
       setProcessingState('PARSING');
       const detection = ProviderDetection.detect(text);
       if (detection.provider === 'UNKNOWN') {
         throw new Error('Unknown Provider: Cannot identify the document from text.');
       }
-      
+
       setDetectedProvider(detection);
-      
+
       const { parser } = sourceParser(detection.provider, detection.type);
       const profile = detection.type === 'SOA' ? 'snapshot' : 'transaction';
 
@@ -78,7 +87,7 @@ const DocumentProcessing = () => {
       }
 
       const normalized = parser.normalize(parsedData);
-      
+
       const evaluated = normalized.map((item, index) => {
         const evalResult = ValidationAndConfidence.evaluate(item, profile);
         return {
@@ -92,7 +101,7 @@ const DocumentProcessing = () => {
       });
 
       setPreviewData(evaluated);
-      
+
       // Auto-select AUTO ACCEPT rows (for transactions) or Snapshot (for snapshots, usually we just import all)
       const defaultSelected = new Set();
       evaluated.forEach(row => {
@@ -101,7 +110,7 @@ const DocumentProcessing = () => {
         }
       });
       setSelectedRows(defaultSelected);
-      
+
       setProcessingState('DONE');
 
     } catch (err) {
@@ -128,7 +137,7 @@ const DocumentProcessing = () => {
       alert('Please select an Investment Account to import into.');
       return;
     }
-    
+
     const rowsToImport = previewData.filter(row => selectedRows.has(row.id));
     if (rowsToImport.length === 0) return;
 
@@ -145,8 +154,10 @@ const DocumentProcessing = () => {
       const payload = buildSourceImport({ accountId: selectedAccountId, detection: detectedProvider, documentHash, batchKey: key, previewData, selectedRows });
       const res = await axios.post('/api/source-imports', payload);
       const results = res.data.results;
+      if (res.data.batch_id) workspace?.recordImport({ batchId: res.data.batch_id, provider: detectedProvider.provider, documentType: detectedProvider.type, results, recordedAt: new Date().toISOString() });
       setImportResult({
         success: true,
+        batchId: res.data.batch_id,
         successfulCount: results.filter(r => ['CREATED', 'LINKED_EXISTING', 'REPLAYED'].includes(r.status)).length,
         failedCount: results.filter(r => ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).length,
         failedDetails: results.filter(r => ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).map(r => ({ reason: r.status })),
@@ -155,7 +166,7 @@ const DocumentProcessing = () => {
     } catch (err) {
       setImportResult({
         success: false,
-        message: err.response?.data?.message || err.message || 'Failed to import data.'
+        message: safeError(err, 'Impor belum dapat disimpan. Hasil pemeriksaan tetap tersedia di browser; silakan coba lagi.')
       });
     } finally {
       setImporting(false);
@@ -168,6 +179,8 @@ const DocumentProcessing = () => {
     return 'badge badge-danger';
   };
 
+  const viewNumber = (data, key) => number(data.exact_values && Object.hasOwn(data.exact_values, key) ? data.exact_values[key] : data[key]);
+
   const renderTransactionTable = () => (
     <table className="tx-table mt-3">
       <thead>
@@ -178,6 +191,7 @@ const DocumentProcessing = () => {
           <th>Date</th>
           <th>Type</th>
           <th>Symbol</th>
+          <th>Unit terverifikasi</th>
           <th>Qty</th>
           <th>Price</th>
           <th>Total</th>
@@ -190,8 +204,8 @@ const DocumentProcessing = () => {
           return (
             <tr key={row.id} className={!row.isHardValidationPass ? 'row-invalid' : ''}>
               <td>
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox" aria-label={`Impor baris ${row.id + 1}`}
                   checked={selectedRows.has(row.id)}
                   onChange={() => toggleRow(row.id)}
                   disabled={row.status === 'REJECT' || importing}
@@ -202,9 +216,14 @@ const DocumentProcessing = () => {
               <td>{tx.transaction_date}</td>
               <td>{tx.type}</td>
               <td>{tx.symbol}</td>
-              <td>{tx.quantity}</td>
-              <td>{tx.price}</td>
-              <td>{tx.total_amount}</td>
+              <td>{['BUY', 'SELL'].includes(tx.type) ? <select aria-label={`Unit baris ${row.id + 1}`} value={tx.unit ?? 'UNKNOWN'} disabled={importing || row.status === 'REJECT'} onChange={event => {
+                const unit = event.target.value;
+                setPreviewData(previous => previous.map(item => item.id === row.id ? { ...item, data: { ...item.data, unit } } : item));
+                setBatchKey(null); setImportResult(null);
+              }}><option value="UNKNOWN">UNKNOWN — belum diverifikasi</option><option value="SHARE">SHARE</option><option value="LOT">LOT</option></select> : 'Tidak mengubah posisi'}</td>
+              <td className="numeric">{viewNumber(tx, 'quantity')}{tx.reference_quantity != null && <small className="cell-subline">Referensi: {number(tx.reference_quantity)}</small>}</td>
+              <td className="numeric">{viewNumber(tx, 'price')}</td>
+              <td className="numeric">{viewNumber(tx, 'total_amount')}<small className="cell-subline">{tx.currency} · {tx.amount_semantics ?? 'UNKNOWN'}</small></td>
               <td>
                 {row.errors.length > 0 ? (
                   <ul className="error-list">
@@ -242,8 +261,8 @@ const DocumentProcessing = () => {
           return (
             <tr key={row.id} className={!row.isHardValidationPass ? 'row-invalid' : ''}>
               <td>
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox" aria-label={`Impor baris ${row.id + 1}`}
                   checked={selectedRows.has(row.id)}
                   onChange={() => toggleRow(row.id)}
                   disabled={row.status === 'REJECT' || importing}
@@ -253,9 +272,9 @@ const DocumentProcessing = () => {
               <td><strong>{row.score}/100</strong></td>
               <td>{item.as_of_date}</td>
               <td>{item.symbol}</td>
-              <td>{item.quantity}</td>
-              <td>{item.average_price}</td>
-              <td>{item.market_value}</td>
+              <td className="numeric">{viewNumber(item, 'quantity')}</td>
+              <td className="numeric">{viewNumber(item, 'average_price')}</td>
+              <td className="numeric">{viewNumber(item, 'market_value')}</td>
               <td>
                 {row.errors.length > 0 ? (
                   <ul className="error-list">
@@ -275,16 +294,19 @@ const DocumentProcessing = () => {
   return (
     <div className="document-processing-page">
       <div className="page-header">
-        <h1>Document Processing (Privacy Mode)</h1>
-        <p className="subtitle">Process PDF statements locally in your browser. Raw PDFs are never sent to the server.</p>
+        <div><p className="eyebrow">LOCAL PROCESSING · TRACEABLE IMPORTS</p><h1>Document Center</h1>
+        <p className="subtitle">Periksa dokumen, tinjau data, lalu konfirmasikan impor. File PDF tetap di perangkat Anda.</p></div><Badge tone="info"><Icon name="shield" size={12}/>Privacy Mode</Badge>
       </div>
 
+      <div className="document-intro"><div className="document-pattern"><Icon name="transactions"/><div><strong>Transaction-Based Update</strong><p>Mulai dari snapshot awal, lalu tambahkan Trade Confirmation atau Cash Dividend.</p></div></div><div className="document-pattern"><Icon name="document"/><div><strong>Monthly Statement-Based Update</strong><p>Perbarui posisi dari laporan bulanan. Aktivitas yang tidak tersedia tetap UNKNOWN.</p></div></div></div>
+      <div className="document-step-status" role="status" aria-live="polite"><strong>{processingState === 'IDLE' ? '01 · Pilih dokumen' : processingState === 'EXTRACTING' ? '02 · Ekstraksi lokal' : processingState === 'PARSING' ? '02 · Validasi data' : processingState === 'DONE' ? '03 · Tinjau & konfirmasi' : 'Pemeriksaan memerlukan perhatian'}</strong><span>PDF lokal → data terstruktur → konfirmasi Anda</span></div>
+      {errorMessage && processingState !== 'ERROR' && <Notice tone="warning">{errorMessage}</Notice>}
       <div className="card processing-controls">
         <div className="form-group">
-          <label>1. Select Investment Account *</label>
-          <select 
-            disabled={importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
-            value={selectedAccountId} 
+          <label htmlFor="document-account">1. Select Investment Account *</label>
+          <select id="document-account"
+            disabled={previewOnly || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
+            value={selectedAccountId}
             onChange={(e) => { setSelectedAccountId(e.target.value); setBatchKey(null); setImportResult(null); }}
             className="input-field"
           >
@@ -294,24 +316,24 @@ const DocumentProcessing = () => {
             ))}
           </select>
         </div>
-        
+
         <div className="form-group mt-3">
-          <label>2. Upload Document (PDF)</label>
-          <input type="file" accept="application/pdf" disabled={importing || processingState === 'EXTRACTING' || processingState === 'PARSING'} onChange={handleFileChange} className="input-field" />
+          <label htmlFor="document-file">2. Select Local Document (PDF)</label>
+          <input id="document-file" type="file" accept="application/pdf" disabled={previewOnly || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'} onChange={handleFileChange} className="input-field" />
         </div>
 
-        <button 
-          className="btn btn-primary mt-3" 
-          onClick={processDocument} 
-          disabled={!file || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
+        <button
+          className="btn btn-primary mt-3"
+          onClick={processDocument}
+          disabled={previewOnly || !file || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
         >
-          {processingState === 'EXTRACTING' ? 'Extracting Text...' : 
+          {processingState === 'EXTRACTING' ? 'Extracting Text...' :
            processingState === 'PARSING' ? 'Parsing Data...' : 'Process Document'}
         </button>
       </div>
 
       {processingState === 'ERROR' && (
-        <div className="error-box mt-3">
+        <div className="error-box mt-3" role="alert">
           <strong>Error: </strong> {errorMessage}
         </div>
       )}
@@ -325,16 +347,16 @@ const DocumentProcessing = () => {
             </span>
           </div>
 
-          <p>Snapshot coverage remains UNKNOWN; selecting only some positions marks it PARTIAL. Missing amounts remain unavailable.</p>
-          <div className="table-responsive">
+          <p>Snapshot coverage remains UNKNOWN; selecting only some positions marks it PARTIAL. Missing amounts remain unavailable. Validation and confidence scores are client checks, not proof of complete activity. Verifikasi unit BUY/SELL dari sumber sebelum impor; UNKNOWN tidak akan dihitung sebagai holdings. LOT dan SHARE tidak dikonversi otomatis.</p>
+          <div className="table-responsive" role="region" aria-label="Pratinjau data dokumen" tabIndex={0}>
             {detectedProvider.type === 'SOA' ? renderSnapshotTable() : renderTransactionTable()}
           </div>
 
           <div className="import-actions mt-4">
-            <button 
-              className="btn btn-success" 
-              onClick={handleImport} 
-              disabled={selectedRows.size === 0 || importing || !selectedAccountId}
+            <button
+              className="btn btn-success"
+              onClick={handleImport}
+              disabled={previewOnly || selectedRows.size === 0 || importing || !selectedAccountId}
             >
               {importing ? 'Importing...' : `Import Selected (${selectedRows.size})`}
             </button>
@@ -345,6 +367,7 @@ const DocumentProcessing = () => {
               {importResult.success ? (
                 <>
                   <p><strong>{importResult.replayed ? 'Import already recorded' : 'Import processed'}</strong></p>
+                  {importResult.batchId && <p className="batch-reference">ID batch: <code>{importResult.batchId}</code></p>}
                   <p>Created / linked / replayed observations: {importResult.successfulCount}</p>
                   <p>Needs review / conflicting observations: {importResult.failedCount}</p>
                   {importResult.failedDetails && importResult.failedDetails.length > 0 && (
@@ -362,6 +385,7 @@ const DocumentProcessing = () => {
           )}
         </div>
       )}
+      <ImportHistory/>
     </div>
   );
 };
