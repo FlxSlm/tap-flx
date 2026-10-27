@@ -15,6 +15,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::get('/investment-accounts', [InvestmentAccountController::class, 'index']);
+    Route::post('/investment-accounts', [InvestmentAccountController::class, 'store']);
     Route::post('/investment-accounts/{account}/reconciliation', [ReconciliationController::class, 'evaluate'])->whereNumber('account');
     Route::get('/investment-accounts/{account}/reconciliation-runs', [ReconciliationController::class, 'index'])->whereNumber('account');
     Route::post('/investment-accounts/{account}/reconciliation-runs', [ReconciliationController::class, 'store'])->whereNumber('account');

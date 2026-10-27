@@ -57,6 +57,9 @@ class SourceImportController extends Controller
             if ($source['document_type'] === 'TC' && ! in_array($canonical['type'], ['BUY', 'SELL'])) {
                 throw ValidationException::withMessages(['transactions' => 'Trade confirmation accepts only BUY/SELL events.']);
             }
+            if (in_array($canonical['type'], ['BUY', 'SELL'], true) && ! in_array($canonical['unit'], ['UNKNOWN', ...($source['provider'] === 'PLUANG' ? ['COIN'] : ['SHARE', 'LOT'])], true)) {
+                throw ValidationException::withMessages(['transactions.unit' => 'Quantity unit is incompatible with the document provider.']);
+            }
             $rows[] = [...$canonical, 'row_key' => $row['row_key'], 'confidence' => $row['confidence'] ?? null, 'match_transaction_id' => $row['match_transaction_id'] ?? null];
         }
         $snapshot = null;

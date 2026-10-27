@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from '../api/axios';
 import { PdfExtractor } from '../lib/document-processing/PdfExtractor';
 import { ProviderDetection } from '../lib/document-processing/ProviderDetection';
@@ -11,6 +11,7 @@ import { Badge, Notice } from '../ui/components';
 import ImportHistory from '../ui/ImportHistory';
 import { useOptionalWorkspace } from '../ui/workspace';
 import { number, safeError } from '../ui/format';
+import InvestmentAccountForm from '../ui/InvestmentAccountForm';
 
 const DocumentProcessing = () => {
   const workspace = useOptionalWorkspace();
@@ -18,6 +19,9 @@ const DocumentProcessing = () => {
   const previewAccounts = workspace?.preview?.accounts;
   const [accounts, setAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [accountStatus, setAccountStatus] = useState('loading');
+  const [accountMessage, setAccountMessage] = useState('');
+  const accountSequence = useRef(0);
 
   const [file, setFile] = useState(null);
   const [documentHash, setDocumentHash] = useState(null);
@@ -31,20 +35,53 @@ const DocumentProcessing = () => {
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const passwordInput = useRef(null);
+  const bindPasswordInput = useCallback(node => {
+    if (!node && passwordInput.current) passwordInput.current.value = '';
+    passwordInput.current = node;
+  }, []);
+  const extraction = useRef({ sequence: 0, controller: null });
+  const importBusy = useRef(false);
+  const batchKeyRef = useRef(null);
+  const selectedAccount = accounts.find(account => String(account.id) === selectedAccountId);
+  const processing = ['EXTRACTING', 'PARSING'].includes(processingState);
+  const providerMismatch = detectedProvider && selectedAccount && selectedAccount.platform_code?.toUpperCase() !== detectedProvider.provider;
+  const importDisabledReason = previewOnly ? 'Preview demo tidak melakukan impor.' : accountStatus === 'loading' ? 'Investment accounts sedang dimuat.' : accountStatus === 'error' ? 'Daftar akun gagal dimuat. Coba muat ulang akun.' : !accounts.length ? 'Create an investment account to continue.' : !selectedAccount ? 'Please select an investment account before importing.' : providerMismatch ? `PDF ${detectedProvider.provider} hanya dapat diimpor ke akun ${detectedProvider.provider}. Pilih akun dengan provider yang sesuai.` : processingState !== 'DONE' ? 'Process PDF dan tinjau hasil sebelum mengimpor.' : !selectedRows.size ? 'Pilih minimal satu baris yang valid untuk diimpor.' : '';
 
-  useEffect(() => {
-    let active = true;
-    const accountRequest = previewAccounts ? Promise.resolve({ data: { data: previewAccounts } }) : axios.get('/api/investment-accounts');
-    accountRequest.then(res => {
-      if (active) setAccounts(res.data.data);
-    }).catch(() => {
-      if (active) setErrorMessage('Failed to load investment accounts.');
-    });
-    return () => { active = false; };
+  const loadAccounts = useCallback(async () => {
+    const sequence = ++accountSequence.current;
+    try {
+      const response = await (previewAccounts ? Promise.resolve({ data: { data: previewAccounts } }) : axios.get('/api/investment-accounts'));
+      if (sequence !== accountSequence.current) return;
+      if (!Array.isArray(response.data.data)) throw new Error('Invalid account response');
+      setAccounts(response.data.data); setAccountStatus('ready');
+    } catch {
+      if (sequence === accountSequence.current) setAccountStatus('error');
+    }
   }, [previewAccounts]);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => { if (!cancelled) void loadAccounts(); });
+    return () => { cancelled = true; accountSequence.current += 1; };
+  }, [loadAccounts]);
+  const clearPassword = () => { if (passwordInput.current) passwordInput.current.value = ''; setShowPassword(false); };
+  useEffect(() => () => {
+    extraction.current.sequence += 1; extraction.current.controller?.abort();
+    if (passwordInput.current) passwordInput.current.value = '';
+  }, []);
+  const createdAccount = (account, existing) => {
+    accountSequence.current += 1;
+    setAccounts(previous => [...previous.filter(item => item.id !== account.id), account]);
+    setAccountStatus('ready'); setSelectedAccountId(String(account.id));
+    setAccountMessage(existing ? 'Akun dengan label ini sudah ada dan telah dipilih.' : 'Investment Account dibuat dan langsung dipilih.');
+    setImportResult(null); setBatchKey(null); batchKeyRef.current = null;
+    workspace?.accounts.retry();
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
+      extraction.current.sequence += 1; extraction.current.controller?.abort(); clearPassword();
       setFile(e.target.files[0]);
       resetState();
     }
@@ -54,6 +91,7 @@ const DocumentProcessing = () => {
     setProcessingState('IDLE');
     setDocumentHash(null);
     setBatchKey(null);
+    batchKeyRef.current = null;
     setErrorMessage('');
     setDetectedProvider(null);
     setPreviewData([]);
@@ -61,13 +99,20 @@ const DocumentProcessing = () => {
     setImportResult(null);
   };
 
-  const processDocument = async () => {
+  const processDocument = async (password) => {
     if (!file) return;
+    const sequence = ++extraction.current.sequence;
+    extraction.current.controller?.abort();
+    const controller = new AbortController(); extraction.current.controller = controller;
+    clearPassword();
     resetState();
     setProcessingState('EXTRACTING');
 
     try {
-      const { text, documentHash: hash } = await PdfExtractor.extractDocument(file);
+      const resultPromise = PdfExtractor.extractDocument(file, { ...(typeof password === 'string' ? { password } : {}), signal: controller.signal });
+      password = null;
+      const { text, documentHash: hash } = await resultPromise;
+      if (sequence !== extraction.current.sequence) return;
       setDocumentHash(hash);
 
       setProcessingState('PARSING');
@@ -114,13 +159,16 @@ const DocumentProcessing = () => {
       setProcessingState('DONE');
 
     } catch (err) {
-      setProcessingState('ERROR');
-      if (err.message === 'PasswordProtected') {
-        setErrorMessage('PDF is password protected. Password-protected PDFs are not fully supported in this prototype yet.');
-      } else {
-        setErrorMessage('Document processing failed. Check the format and supported source.');
-      }
+      if (sequence !== extraction.current.sequence) return;
+      const code = err.code;
+      setProcessingState(['PASSWORD_REQUIRED', 'INCORRECT_PASSWORD'].includes(code) ? 'PASSWORD' : code === 'CANCELLED' ? 'IDLE' : 'ERROR');
+      setErrorMessage(({ PASSWORD_REQUIRED: 'PDF memerlukan password. Password hanya dipakai di browser.', INCORRECT_PASSWORD: 'Password salah. Coba kembali tanpa memilih file ulang.', UNSUPPORTED_ENCRYPTION: 'Metode enkripsi PDF belum didukung. Gunakan salinan yang disiapkan secara lokal.', CORRUPT_PDF: 'PDF rusak atau bukan PDF yang valid.', CANCELLED: '' })[code] ?? 'Document processing failed. Check the format and supported source.');
+    } finally {
+      password = null;
     }
+  };
+  const cancelProcessing = () => {
+    extraction.current.sequence += 1; extraction.current.controller?.abort(); clearPassword(); resetState();
   };
 
   const toggleRow = (id) => {
@@ -129,19 +177,17 @@ const DocumentProcessing = () => {
     else newSelected.add(id);
     setSelectedRows(newSelected);
     setBatchKey(null);
+    batchKeyRef.current = null;
     setImportResult(null);
   };
 
   const handleImport = async () => {
-    if (!selectedAccountId) {
-      alert('Please select an Investment Account to import into.');
-      return;
-    }
+    if (importDisabledReason || importBusy.current) return;
 
     const rowsToImport = previewData.filter(row => selectedRows.has(row.id));
     if (rowsToImport.length === 0) return;
 
-    setImporting(true);
+    importBusy.current = true; setImporting(true);
     setImportResult(null);
 
     try {
@@ -149,7 +195,8 @@ const DocumentProcessing = () => {
       if (account?.platform_code?.toUpperCase() !== detectedProvider.provider) {
         throw new Error('Selected account does not match the document provider.');
       }
-      const key = batchKey ?? crypto.randomUUID();
+      const key = batchKeyRef.current ?? batchKey ?? crypto.randomUUID();
+      batchKeyRef.current = key;
       setBatchKey(key);
       const payload = buildSourceImport({ accountId: selectedAccountId, detection: detectedProvider, documentHash, batchKey: key, previewData, selectedRows });
       const res = await axios.post('/api/source-imports', payload);
@@ -159,9 +206,11 @@ const DocumentProcessing = () => {
         success: true,
         batchId: res.data.batch_id,
         successfulCount: results.filter(r => ['CREATED', 'LINKED_EXISTING', 'REPLAYED'].includes(r.status)).length,
-        failedCount: results.filter(r => ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).length,
-        failedDetails: results.filter(r => ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).map(r => ({ reason: r.status })),
+        failedCount: results.filter(r => r.review_status === 'REQUIRED' || ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).length,
+        failedDetails: results.filter(r => r.review_status === 'REQUIRED' || ['PENDING_REVIEW', 'SOURCE_CONFLICT'].includes(r.status)).map(r => ({ reason: r.review_status === 'REQUIRED' ? 'REQUIRED — tinjau unit, coverage dan sumber' : r.status })),
         replayed: res.data.replayed,
+        accountId: selectedAccountId,
+        asOf: detectedProvider.type === 'SOA' ? rowsToImport[0].data.as_of_date : null,
       });
     } catch (err) {
       setImportResult({
@@ -169,7 +218,7 @@ const DocumentProcessing = () => {
         message: safeError(err, 'Impor belum dapat disimpan. Hasil pemeriksaan tetap tersedia di browser; silakan coba lagi.')
       });
     } finally {
-      setImporting(false);
+      importBusy.current = false; setImporting(false);
     }
   };
 
@@ -219,7 +268,7 @@ const DocumentProcessing = () => {
               <td>{['BUY', 'SELL'].includes(tx.type) ? <select aria-label={`Unit baris ${row.id + 1}`} value={tx.unit ?? 'UNKNOWN'} disabled={importing || row.status === 'REJECT'} onChange={event => {
                 const unit = event.target.value;
                 setPreviewData(previous => previous.map(item => item.id === row.id ? { ...item, data: { ...item.data, unit } } : item));
-                setBatchKey(null); setImportResult(null);
+                setBatchKey(null); batchKeyRef.current = null; setImportResult(null);
               }}><option value="UNKNOWN">UNKNOWN — belum diverifikasi</option><option value="SHARE">SHARE</option><option value="LOT">LOT</option></select> : 'Tidak mengubah posisi'}</td>
               <td className="numeric">{viewNumber(tx, 'quantity')}{tx.reference_quantity != null && <small className="cell-subline">Referensi: {number(tx.reference_quantity)}</small>}</td>
               <td className="numeric">{viewNumber(tx, 'price')}</td>
@@ -299,15 +348,15 @@ const DocumentProcessing = () => {
       </div>
 
       <div className="document-intro"><div className="document-pattern"><Icon name="transactions"/><div><strong>Transaction-Based Update</strong><p>Mulai dari snapshot awal, lalu tambahkan Trade Confirmation atau Cash Dividend.</p></div></div><div className="document-pattern"><Icon name="document"/><div><strong>Monthly Statement-Based Update</strong><p>Perbarui posisi dari laporan bulanan. Aktivitas yang tidak tersedia tetap UNKNOWN.</p></div></div></div>
-      <div className="document-step-status" role="status" aria-live="polite"><strong>{processingState === 'IDLE' ? '01 · Pilih dokumen' : processingState === 'EXTRACTING' ? '02 · Ekstraksi lokal' : processingState === 'PARSING' ? '02 · Validasi data' : processingState === 'DONE' ? '03 · Tinjau & konfirmasi' : 'Pemeriksaan memerlukan perhatian'}</strong><span>PDF lokal → data terstruktur → konfirmasi Anda</span></div>
-      {errorMessage && processingState !== 'ERROR' && <Notice tone="warning">{errorMessage}</Notice>}
+      <div className="document-step-status" role="status" aria-live="polite"><strong>{processingState === 'IDLE' ? '01 · Pilih / buat akun dan dokumen' : processingState === 'PASSWORD' ? '02 · Unlock PDF secara lokal' : processingState === 'EXTRACTING' ? '03 · Ekstraksi lokal' : processingState === 'PARSING' ? '03 · Validasi data' : processingState === 'DONE' ? '04 · Tinjau & konfirmasi' : 'Pemeriksaan memerlukan perhatian'}</strong><span>PDF lokal → data terstruktur → konfirmasi Anda</span></div>
+      {accountMessage && <Notice tone="success">{accountMessage}</Notice>}
       <div className="card processing-controls">
         <div className="form-group">
           <label htmlFor="document-account">1. Select Investment Account *</label>
           <select id="document-account"
-            disabled={previewOnly || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
+            disabled={previewOnly || importing || processing || accountStatus !== 'ready'}
             value={selectedAccountId}
-            onChange={(e) => { setSelectedAccountId(e.target.value); setBatchKey(null); setImportResult(null); }}
+            onChange={(e) => { setSelectedAccountId(e.target.value); setBatchKey(null); batchKeyRef.current = null; setImportResult(null); }}
             className="input-field"
           >
             <option value="">-- Choose Account --</option>
@@ -316,20 +365,32 @@ const DocumentProcessing = () => {
             ))}
           </select>
         </div>
+        {accountStatus === 'loading' && <p role="status">Investment accounts sedang dimuat...</p>}
+        {accountStatus === 'error' && <Notice tone="danger" role="alert">Daftar Investment Account gagal dimuat. Periksa sesi, koneksi, dan origin API lokal. <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setAccountStatus('loading'); loadAccounts(); }} disabled={importing || processing}>Muat ulang akun</button></Notice>}
+        {accountStatus === 'ready' && !accounts.length && <Notice>Create an investment account to continue.</Notice>}
+        {!previewOnly && <InvestmentAccountForm onCreated={createdAccount} disabled={importing || processing || accountStatus !== 'ready'}/>}
 
         <div className="form-group mt-3">
           <label htmlFor="document-file">2. Select Local Document (PDF)</label>
-          <input id="document-file" type="file" accept="application/pdf" disabled={previewOnly || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'} onChange={handleFileChange} className="input-field" />
+          <input id="document-file" type="file" accept="application/pdf" disabled={previewOnly || importing || processing} onChange={handleFileChange} className="input-field" />
         </div>
 
         <button
           className="btn btn-primary mt-3"
-          onClick={processDocument}
-          disabled={previewOnly || !file || importing || processingState === 'EXTRACTING' || processingState === 'PARSING'}
+          onClick={() => processDocument()}
+          disabled={previewOnly || !file || importing || processing || processingState === 'PASSWORD'}
         >
           {processingState === 'EXTRACTING' ? 'Extracting Text...' :
            processingState === 'PARSING' ? 'Parsing Data...' : 'Process Document'}
         </button>
+        {(processing || processingState === 'PASSWORD') && <button type="button" className="btn btn-secondary" onClick={cancelProcessing}>Cancel processing</button>}
+        {processingState === 'PASSWORD' && <form className="pdf-password-form" aria-label="Unlock PDF lokal" onSubmit={event => { event.preventDefault(); let secret = passwordInput.current?.value; if (!secret) return; clearPassword(); const attempt = processDocument(secret); secret = null; void attempt; }}>
+          <Notice tone="warning">{errorMessage}</Notice>
+          <label className="form-group" htmlFor="local-pdf-password">Password PDF<input id="local-pdf-password" ref={bindPasswordInput} type={showPassword ? 'text' : 'password'} autoComplete="off" required spellCheck={false}/></label>
+          <div className="reconciliation-actions"><button type="button" className="btn btn-secondary" aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? 'Hide Password' : 'Show Password'}</button><button className="btn btn-primary">Unlock & Process</button></div>
+          <p>Password tidak dikirim atau disimpan. Input dikosongkan setiap percobaan; file dapat digunakan kembali untuk retry.</p>
+        </form>}
+        {importDisabledReason && <p id="document-import-reason" role="status">{importDisabledReason}</p>}
       </div>
 
       {processingState === 'ERROR' && (
@@ -356,7 +417,8 @@ const DocumentProcessing = () => {
             <button
               className="btn btn-success"
               onClick={handleImport}
-              disabled={previewOnly || selectedRows.size === 0 || importing || !selectedAccountId}
+              disabled={!!importDisabledReason || importing}
+              aria-describedby="document-import-reason"
             >
               {importing ? 'Importing...' : `Import Selected (${selectedRows.size})`}
             </button>
@@ -368,6 +430,7 @@ const DocumentProcessing = () => {
                 <>
                   <p><strong>{importResult.replayed ? 'Import already recorded' : 'Import processed'}</strong></p>
                   {importResult.batchId && <p className="batch-reference">ID batch: <code>{importResult.batchId}</code></p>}
+                  {importResult.asOf && <p><a className="btn btn-primary" href={`/portfolio?account=${encodeURIComponent(importResult.accountId)}&as_of=${encodeURIComponent(importResult.asOf)}`}>View in My Portfolio</a></p>}
                   <p>Created / linked / replayed observations: {importResult.successfulCount}</p>
                   <p>Needs review / conflicting observations: {importResult.failedCount}</p>
                   {importResult.failedDetails && importResult.failedDetails.length > 0 && (

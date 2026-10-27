@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from '../api/axios';
 import { Badge, EmptyState, LoadingState, Notice, PageHeading, Panel, TableRegion } from '../ui/components';
 import { date, number, safeError, TIME_ZONE } from '../ui/format';
@@ -65,10 +65,22 @@ function CalculatedPositions({ calculated, asOf }) {
 
 function PortfolioWorkspace() {
   const { accounts, filters, setFilters } = useWorkspace();
+  const [search] = useSearchParams();
+  const appliedLink = useRef(null);
+  const requestedAccount = search.get('account');
+  const requestedDate = search.get('as_of');
   const [asOf, setAsOf] = useState(() => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(requestedDate ?? '') && !Number.isNaN(Date.parse(requestedDate))) return requestedDate;
     const parts = new Intl.DateTimeFormat('en', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
     return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type).value).join('-');
   });
+  useEffect(() => {
+    if (!requestedAccount || accounts.status !== 'ready' || appliedLink.current === requestedAccount) return;
+    appliedLink.current = requestedAccount;
+    const account = accounts.data.find(item => String(item.id) === requestedAccount);
+    if (account) setFilters({ provider: account.platform_code, accountId: requestedAccount });
+    // Keep the URL for full refresh; apply once so manual account changes remain possible.
+  }, [requestedAccount, accounts.status, accounts.data, setFilters]);
   const scope = `${filters.accountId}:${asOf}`;
   const [selection, setSelection] = useState({ scope: null, id: '' });
   const [pageState, setPageState] = useState({ scope: null, page: 1 });

@@ -98,6 +98,7 @@ final class SourceImporter
                 }
                 $target = null;
                 $status = 'PENDING_REVIEW';
+                $needsUnitReview = in_array($row['type'], ['BUY', 'SELL'], true) && $row['unit'] === 'UNKNOWN';
                 if ($row['match_transaction_id'] !== null) {
                     $target = Transaction::where('investment_account_id', $account->id)->find($row['match_transaction_id']);
                     if (! $target || ! TransactionIdentity::compatible($payload, $target->toArray())) {
@@ -106,7 +107,9 @@ final class SourceImporter
                     $status = 'LINKED_EXISTING';
                 } elseif ($candidates->isEmpty()) {
                     $target = TransactionWriter::create($payload, $actor);
-                    $target->update(['review_status' => 'CONFIRMED']);
+                    if (! $needsUnitReview) {
+                        $target->update(['review_status' => 'CONFIRMED']);
+                    }
                     $status = 'CREATED';
                 }
                 $observationId = DB::table('source_observations')->insertGetId([
@@ -115,10 +118,10 @@ final class SourceImporter
                     'structured_data' => json_encode($payload, JSON_THROW_ON_ERROR),
                     'transaction_id' => $target?->id, 'candidate_ids' => json_encode($candidates->pluck('id')->all()),
                     'confidence' => $row['confidence'], 'validation_status' => 'PASSED',
-                    'review_status' => $status === 'PENDING_REVIEW' ? 'REQUIRED' : 'CONFIRMED',
+                    'review_status' => $status === 'PENDING_REVIEW' || $needsUnitReview ? 'REQUIRED' : 'CONFIRMED',
                     'status' => $status, 'created_at' => now(), 'updated_at' => now(),
                 ]);
-                $results[] = ['row_key' => $row['row_key'], 'status' => $status, 'observation_id' => $observationId, 'transaction_id' => $target?->id, 'candidate_ids' => $candidates->pluck('id')->all()];
+                $results[] = ['row_key' => $row['row_key'], 'status' => $status, 'review_status' => $status === 'PENDING_REVIEW' || $needsUnitReview ? 'REQUIRED' : 'CONFIRMED', 'observation_id' => $observationId, 'transaction_id' => $target?->id, 'candidate_ids' => $candidates->pluck('id')->all()];
                 if ($status === 'LINKED_EXISTING') {
                     IntegrityAudit::record($account->id, $actor, 'SOURCE_LINK_CONFIRMED', $target->id, null, null, $sourceId, $batchId);
                 }
@@ -139,7 +142,7 @@ final class SourceImporter
         $hash = self::digest($data);
         $old = DB::table('source_observations')->where('source_document_id', $sourceId)->where('row_key', 'snapshot')->first();
         if ($old) {
-            return ['row_key' => 'snapshot', 'status' => $old->payload_hash !== $hash ? 'SOURCE_CONFLICT' : ($old->status === 'PENDING_REVIEW' ? 'PENDING_REVIEW' : 'REPLAYED'), 'snapshot_id' => $old->portfolio_snapshot_id, 'observation_id' => $old->id];
+            return ['row_key' => 'snapshot', 'status' => $old->payload_hash !== $hash ? 'SOURCE_CONFLICT' : ($old->status === 'PENDING_REVIEW' ? 'PENDING_REVIEW' : 'REPLAYED'), 'review_status' => $old->review_status, 'snapshot_id' => $old->portfolio_snapshot_id, 'observation_id' => $old->id];
         }
         $conflict = PortfolioSnapshot::where('investment_account_id', $data['investment_account_id'])->whereDate('as_of_date', $data['as_of_date'])->exists();
         $items = $data['items'];
@@ -155,6 +158,6 @@ final class SourceImporter
             'status' => $conflict ? 'PENDING_REVIEW' : 'CREATED', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        return ['row_key' => 'snapshot', 'status' => $conflict ? 'PENDING_REVIEW' : 'CREATED', 'snapshot_id' => $snapshot->id, 'observation_id' => $id, 'coverage' => $snapshot->coverage];
+        return ['row_key' => 'snapshot', 'status' => $conflict ? 'PENDING_REVIEW' : 'CREATED', 'review_status' => 'REQUIRED', 'snapshot_id' => $snapshot->id, 'observation_id' => $id, 'coverage' => $snapshot->coverage];
     }
 }

@@ -22,6 +22,8 @@ const dangerousPath = name => /\.pdf$/i.test(name) || /(?:^|\/)\.env(?:\.|$)/i.t
   || /\.(?:key|pem|p12|pfx|sqlite(?:3)?(?:-.*)?|sql|bundle)$/i.test(name)
   || /(?:^|\/)(?:\.local-backups|node_modules|vendor|dist|coverage)\//.test(name);
 const binaryAllowed = /\.(?:png|ico)$/i;
+// Explicitly reviewed local-only validation harnesses; other tools/*.php stay blocked.
+const reviewedToolPaths = new Set(['tools/gate35-runtime.php', 'tools/gate36-runtime.php']);
 const expected = /^(?:TA_Rebuild_Reconciliation\/.*\.md|tools\/[A-Za-z0-9._-]+\.mjs|backend\/storage\/(?:.*\/)?\.gitignore|backend\/(?:app|bootstrap|config|database|public|resources|routes|tests)\/.*|frontend\/(?:src|public)\/.*|(?:backend|frontend)\/(?:\.[A-Za-z0-9._-]+|README\.md|artisan|composer\.(?:json|lock)|package(?:-lock)?\.json|phpunit\.xml|vite\.config\.js|index\.html)|docs\/.*|[A-Za-z0-9._-]+\.md|\.gitignore)$/;
 const reportPath = name => dangerousPath(name) ? '[sensitive path redacted]' : name;
 const scanText = (text, name, prefix) => {
@@ -56,7 +58,7 @@ try {
   let scanned = 0;
   for (const name of candidates) {
     if (dangerousPath(name)) { problems.push(`Sensitive/generated file would be included: ${reportPath(name)}`); continue; }
-    if (!expected.test(name)) problems.push(`Unexpected candidate path: ${reportPath(name)}`);
+    if (!expected.test(name) && !reviewedToolPaths.has(name)) problems.push(`Unexpected candidate path: ${reportPath(name)}`);
     const stat = fs.lstatSync(name);
     if (stat.isSymbolicLink()) { problems.push(`Symlink needs review: ${reportPath(name)}`); continue; }
     if (stat.size > 2 * 1024 * 1024) { problems.push(`Oversized candidate needs review: ${reportPath(name)}`); continue; }

@@ -65,6 +65,21 @@ class SourceIntegrityTest extends TestCase
         $this->assertDatabaseHas('source_documents', ['public_id' => $response->json('source_document_id'), 'parser_version' => 'synthetic@1']);
     }
 
+    public function test_unknown_trade_unit_remains_required_review_instead_of_becoming_an_accepted_event(): void
+    {
+        $this->postJson('/api/source-imports', $this->envelope(row: ['unit' => 'UNKNOWN']))->assertOk()->assertJsonPath('results.0.review_status', 'REQUIRED');
+        $this->assertSame('REQUIRED', Transaction::sole()->review_status);
+        $this->assertDatabaseHas('source_observations', ['review_status' => 'REQUIRED']);
+        $this->assertSame('UNKNOWN', json_decode(DB::table('source_observations')->sole()->structured_data, true)['unit']);
+    }
+
+    public function test_stock_statement_provider_cannot_accept_coin_trade_unit(): void
+    {
+        $this->postJson('/api/source-imports', $this->envelope(row: ['unit' => 'COIN']))->assertUnprocessable();
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertDatabaseCount('source_documents', 0);
+    }
+
     public function test_missing_fee_and_tax_stay_null_instead_of_zero(): void
     {
         $this->postJson('/api/source-imports', $this->envelope(row: ['fee_amount' => null, 'tax_amount' => null]))->assertOk();

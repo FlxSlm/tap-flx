@@ -23,6 +23,18 @@ beforeEach(() => {
   });
 });
 function mount() { return render(<MemoryRouter><WorkspaceProvider profile={{ name: 'DEMO' }}><Portfolio/></WorkspaceProvider></MemoryRouter>); }
+it('opens an imported account/date from the URL and repeats the same persisted read after a full remount', async () => {
+  const open = () => render(<MemoryRouter initialEntries={['/portfolio?account=901&as_of=2020-02-29']}><WorkspaceProvider profile={{ name: 'DEMO' }}><Portfolio/></WorkspaceProvider></MemoryRouter>);
+  let page = open();
+  await screen.findByRole('region', { name: 'Reported holdings snapshot 21' });
+  expect(screen.getByLabelText('Akun investasi').value).toBe('901');
+  expect(screen.getByLabelText('Tanggal posisi').value).toBe('2020-02-29');
+  page.unmount(); page = open();
+  await screen.findByRole('region', { name: 'Reported holdings snapshot 21' });
+  expect(screen.getByLabelText('Akun investasi').value).toBe('901');
+  expect(axios.get.mock.calls.filter(([url]) => url.includes('/holdings?')).every(([url]) => url.includes('as_of=2020-02-29'))).toBe(true);
+  page.unmount();
+});
 async function chooseAccount(id = '901') {
   await waitFor(() => expect(screen.getByLabelText('Akun investasi').disabled).toBe(false));
   fireEvent.change(screen.getByLabelText('Akun investasi'), { target: { value: id } });
