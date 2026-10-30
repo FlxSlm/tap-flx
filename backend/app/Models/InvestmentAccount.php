@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvestmentAccount extends Model
 {
+    protected $hidden = ['automatic_page_token', 'sync_lease'];
+
+    protected $casts = ['acquisition_epoch' => 'integer', 'email_connection_id' => 'integer'];
+
     protected $fillable = [
         'user_id',
         'platform_id',

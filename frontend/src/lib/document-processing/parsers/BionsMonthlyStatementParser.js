@@ -1,5 +1,5 @@
-import { DocumentParserInterface } from '../DocumentParserInterface';
-import { plainNumber } from '../SourceNumbers';
+import { DocumentParserInterface } from '../DocumentParserInterface.js';
+import { plainNumber } from '../SourceNumbers.js';
 
 export class BionsMonthlyStatementParser extends DocumentParserInterface {
   parse(text) {

@@ -25,4 +25,11 @@ axiosInstance.interceptors.request.use(config => {
     return config;
 });
 
+axiosInstance.interceptors.response.use(response => response, error => {
+    if (typeof window !== 'undefined' && error.response?.status === 401 && /(?:^|\/)api\//.test(error.config?.url ?? '')) {
+        window.dispatchEvent(new Event('tap-flx:session-expired'));
+    }
+    return Promise.reject(error);
+});
+
 export default axiosInstance;

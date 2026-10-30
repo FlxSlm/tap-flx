@@ -28,6 +28,8 @@ export function date(value, withTime = false) {
 
 export function safeError(error, fallback = 'Data belum dapat dimuat. Silakan coba lagi.') {
   if (error?.response?.status === 401) return 'Sesi Anda berakhir. Silakan masuk kembali.';
+  if (error?.response?.status === 419) return 'Token sesi kedaluwarsa. Masuk kembali sebelum mencoba lagi.';
+  if (error?.response?.data?.code === 'SOURCE_SCHEMA_PENDING') return 'Fondasi impor database belum tersedia. Pemilik perlu meninjau migration manual.';
   if (error?.response?.status === 409) return 'Data bertentangan dengan catatan yang sudah ada. Periksa sebelum mencoba kembali.';
   if (error?.response?.status === 422) return 'Periksa isian dan kelengkapan data Anda sebelum mencoba kembali.';
   return fallback;

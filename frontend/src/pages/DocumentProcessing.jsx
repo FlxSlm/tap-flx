@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from '../api/axios';
 import { PdfExtractor } from '../lib/document-processing/PdfExtractor';
-import { ProviderDetection } from '../lib/document-processing/ProviderDetection';
-import { ValidationAndConfidence } from '../lib/document-processing/ValidationAndConfidence';
+import { parseDocument } from '../lib/document-processing/DocumentPipeline';
 
-import { sourceParser, buildSourceImport } from '../lib/document-processing/SourceContract';
+import { buildSourceImport } from '../lib/document-processing/SourceContract';
 import './DocumentProcessing.css';
 import Icon from '../ui/Icon';
 import { Badge, Notice } from '../ui/components';
@@ -20,6 +19,7 @@ const DocumentProcessing = () => {
   const [accounts, setAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [accountStatus, setAccountStatus] = useState('loading');
+  const [accountError, setAccountError] = useState('');
   const [accountMessage, setAccountMessage] = useState('');
   const accountSequence = useRef(0);
 
@@ -56,8 +56,11 @@ const DocumentProcessing = () => {
       if (sequence !== accountSequence.current) return;
       if (!Array.isArray(response.data.data)) throw new Error('Invalid account response');
       setAccounts(response.data.data); setAccountStatus('ready');
-    } catch {
-      if (sequence === accountSequence.current) setAccountStatus('error');
+    } catch (error) {
+      if (sequence === accountSequence.current) {
+        setAccountStatus('error');
+        setAccountError(safeError(error, error.code === 'API_ORIGIN_BLOCKED' ? 'Origin API tidak diizinkan. Gunakan alamat lokal yang sesuai.' : 'Daftar akun gagal dimuat. Periksa koneksi API lokal lalu coba kembali.'));
+      }
     }
   }, [previewAccounts]);
   useEffect(() => {
@@ -116,34 +119,8 @@ const DocumentProcessing = () => {
       setDocumentHash(hash);
 
       setProcessingState('PARSING');
-      const detection = ProviderDetection.detect(text);
-      if (detection.provider === 'UNKNOWN') {
-        throw new Error('Unknown Provider: Cannot identify the document from text.');
-      }
-
+      const { detection, previewData: evaluated } = parseDocument(text);
       setDetectedProvider(detection);
-
-      const { parser } = sourceParser(detection.provider, detection.type);
-      const profile = detection.type === 'SOA' ? 'snapshot' : 'transaction';
-
-      const parsedData = parser.parse(text);
-      if (parsedData.length === 0) {
-        throw new Error(`No data found matching the ${detection.provider} ${detection.type} format.`);
-      }
-
-      const normalized = parser.normalize(parsedData);
-
-      const evaluated = normalized.map((item, index) => {
-        const evalResult = ValidationAndConfidence.evaluate(item, profile);
-        return {
-          id: index,
-          data: item,
-          score: evalResult.score,
-          status: evalResult.status,
-          errors: evalResult.errors,
-          isHardValidationPass: evalResult.isHardValidationPass
-        };
-      });
 
       setPreviewData(evaluated);
 
@@ -162,7 +139,7 @@ const DocumentProcessing = () => {
       if (sequence !== extraction.current.sequence) return;
       const code = err.code;
       setProcessingState(['PASSWORD_REQUIRED', 'INCORRECT_PASSWORD'].includes(code) ? 'PASSWORD' : code === 'CANCELLED' ? 'IDLE' : 'ERROR');
-      setErrorMessage(({ PASSWORD_REQUIRED: 'PDF memerlukan password. Password hanya dipakai di browser.', INCORRECT_PASSWORD: 'Password salah. Coba kembali tanpa memilih file ulang.', UNSUPPORTED_ENCRYPTION: 'Metode enkripsi PDF belum didukung. Gunakan salinan yang disiapkan secara lokal.', CORRUPT_PDF: 'PDF rusak atau bukan PDF yang valid.', CANCELLED: '' })[code] ?? 'Document processing failed. Check the format and supported source.');
+      setErrorMessage(({ PASSWORD_REQUIRED: 'PDF memerlukan password. Password hanya dipakai di browser.', INCORRECT_PASSWORD: 'Password salah. Coba kembali tanpa memilih file ulang.', UNSUPPORTED_ENCRYPTION: 'Metode enkripsi PDF belum didukung. Gunakan salinan yang disiapkan secara lokal.', CORRUPT_PDF: 'PDF rusak atau bukan PDF yang valid.', UNKNOWN_PROVIDER: 'Provider dokumen belum dikenali. Gunakan sumber yang didukung.', UNSUPPORTED_DOCUMENT: 'Jenis dokumen belum didukung untuk provider ini.', NO_MATCHING_ROWS: 'Dokumen dikenali tetapi baris yang didukung belum terbaca. Periksa layout atau apakah PDF berupa hasil scan.', SOURCE_FORMAT_INVALID: 'Format angka atau tabel sumber tidak sesuai kontrak. Tinjau dokumen sebelum impor.', CANCELLED: '' })[code] ?? 'Document processing failed. Check the format and supported source.');
     } finally {
       password = null;
     }
@@ -366,7 +343,7 @@ const DocumentProcessing = () => {
           </select>
         </div>
         {accountStatus === 'loading' && <p role="status">Investment accounts sedang dimuat...</p>}
-        {accountStatus === 'error' && <Notice tone="danger" role="alert">Daftar Investment Account gagal dimuat. Periksa sesi, koneksi, dan origin API lokal. <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setAccountStatus('loading'); loadAccounts(); }} disabled={importing || processing}>Muat ulang akun</button></Notice>}
+        {accountStatus === 'error' && <Notice tone="danger" role="alert">{accountError} <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setAccountStatus('loading'); loadAccounts(); }} disabled={importing || processing}>Muat ulang akun</button><a className="text-link" href="/login">Masuk kembali</a></Notice>}
         {accountStatus === 'ready' && !accounts.length && <Notice>Create an investment account to continue.</Notice>}
         {!previewOnly && <InvestmentAccountForm onCreated={createdAccount} disabled={importing || processing || accountStatus !== 'ready'}/>}
 

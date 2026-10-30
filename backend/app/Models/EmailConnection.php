@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class EmailConnection extends Model
 {
+    protected $hidden = ['credentials', 'oauth_id'];
+
     protected $fillable = [
         'user_id',
         'email_address',

@@ -21,6 +21,11 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         checkAuth();
     }, []);
+    useEffect(() => {
+        const expired = () => setUser(null);
+        window.addEventListener('tap-flx:session-expired', expired);
+        return () => window.removeEventListener('tap-flx:session-expired', expired);
+    }, []);
 
     const register = async (name, email, password, password_confirmation) => {
         await axios.get('/sanctum/csrf-cookie');

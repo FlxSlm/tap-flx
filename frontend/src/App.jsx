@@ -7,7 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import DocumentProcessing from './pages/DocumentProcessing';
 import Reconciliation from './pages/Reconciliation';
-import { Analytics, Connections, Portfolio, Settings } from './pages/WorkspacePages';
+import { Analytics, Portfolio, Settings } from './pages/WorkspacePages';
+import AutomaticConnections from './pages/AutomaticConnections';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './ui/AppShell';
 import { WorkspaceProvider } from './ui/WorkspaceContext';
@@ -34,7 +35,7 @@ export function AppRoutes() {
       <Route path="documents" element={<DocumentProcessing/>}/>
       <Route path="process-document" element={<Navigate to="/documents" replace/>}/>
       <Route path="analytics" element={<Analytics/>}/>
-      <Route path="connections" element={<Connections/>}/>
+      <Route path="connections" element={<AutomaticConnections/>}/>
       <Route path="settings" element={<Settings/>}/>
       <Route path="*" element={<Navigate to="/" replace/>}/>
     </Route>

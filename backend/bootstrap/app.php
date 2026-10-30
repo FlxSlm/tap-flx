@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Automatic\AutomaticFailure;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,7 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $privateApi = static fn (Request $request) => $request->is('api/*', 'login', 'register', 'logout');
+        $privateApi = static fn (Request $request) => $request->is('api/*', 'automatic/*', 'login', 'register', 'logout');
         $exceptions->report(function (Throwable $error) use ($privateApi) {
             if (app()->bound('request') && $privateApi(request())) {
                 // Do not log exception messages, SQL bindings, request bodies or traces.
@@ -30,6 +31,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
         $exceptions->render(function (Throwable $error, Request $request) use ($privateApi) {
+            if ($error instanceof AutomaticFailure) {
+                $status = in_array($error->reason, ['SYNC_PAUSED', 'SYNC_BUSY', 'REVIEW_STATE_CONFLICT'], true) ? 409 : 503;
+
+                return response()->json(['code' => $error->reason, 'message' => 'Automatic processing requires attention.'], $status)->header('Cache-Control', 'private, no-store');
+            }
             if (! $privateApi($request) || $error instanceof ValidationException) {
                 return null;
             }

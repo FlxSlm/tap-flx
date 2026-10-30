@@ -8,6 +8,7 @@ use App\Services\Integrity\SourceImporter;
 use App\Services\Integrity\TransactionContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -15,6 +16,9 @@ class SourceImportController extends Controller
 {
     public function store(Request $request, SourceImporter $importer)
     {
+        if (! Schema::hasTable('source_observations') || ! Schema::hasColumn('transactions', 'unit')) {
+            return response()->json(['code' => 'SOURCE_SCHEMA_PENDING', 'message' => 'Import foundation requires a reviewed manual migration.'], 503);
+        }
         if (array_diff(array_keys($request->all()), ['schema_version', 'investment_account_id', 'idempotency_key', 'confirmed', 'source', 'transactions', 'snapshot'])) {
             throw ValidationException::withMessages(['payload' => 'Only structured contract fields are allowed.']);
         }

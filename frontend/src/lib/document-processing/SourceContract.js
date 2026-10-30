@@ -1,9 +1,9 @@
-import { BionsTradeConfirmationParser } from './parsers/BionsTradeConfirmationParser';
-import { BionsMonthlyStatementParser } from './parsers/BionsMonthlyStatementParser';
-import { BionsCorporateActionParser } from './parsers/BionsCorporateActionParser';
-import { StockbitTradeConfirmationParser } from './parsers/StockbitTradeConfirmationParser';
-import { StockbitMonthlyStatementParser } from './parsers/StockbitMonthlyStatementParser';
-import { PluangMonthlyStatementParser } from './parsers/PluangMonthlyStatementParser';
+import { BionsTradeConfirmationParser } from './parsers/BionsTradeConfirmationParser.js';
+import { BionsMonthlyStatementParser } from './parsers/BionsMonthlyStatementParser.js';
+import { BionsCorporateActionParser } from './parsers/BionsCorporateActionParser.js';
+import { StockbitTradeConfirmationParser } from './parsers/StockbitTradeConfirmationParser.js';
+import { StockbitMonthlyStatementParser } from './parsers/StockbitMonthlyStatementParser.js';
+import { PluangMonthlyStatementParser } from './parsers/PluangMonthlyStatementParser.js';
 
 const registry = {
   'BIONS:TC': BionsTradeConfirmationParser,

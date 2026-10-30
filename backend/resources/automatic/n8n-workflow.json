@@ -1,0 +1,16 @@
+{
+  "name": "TAP FLX local ingestion scheduler (isolated demo)",
+  "active": false,
+  "nodes": [
+    { "id": "timer", "name": "Every five minutes", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0], "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] } } },
+    { "id": "jobs", "name": "List opaque Laravel jobs", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [240, 0], "parameters": { "url": "http://localhost:8035/api/internal/automatic/jobs", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "options": { "timeout": 30000 } } },
+    { "id": "split", "name": "Normalize jobs", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [480, 0], "parameters": { "jsCode": "return $input.all().flatMap(item => (Array.isArray(item.json) ? item.json : [item.json]).filter(row => typeof row.job === 'string').map(row => ({json: {job: row.job}})));" } },
+    { "id": "sync", "name": "Request ingestion (status only)", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [720, 0], "parameters": { "method": "POST", "url": "={{ 'http://localhost:8035/api/internal/automatic/jobs/' + $json.job }}", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "options": { "timeout": 900000 } } }
+  ],
+  "connections": {
+    "Every five minutes": { "main": [[{ "node": "List opaque Laravel jobs", "type": "main", "index": 0 }]] },
+    "List opaque Laravel jobs": { "main": [[{ "node": "Normalize jobs", "type": "main", "index": 0 }]] },
+    "Normalize jobs": { "main": [[{ "node": "Request ingestion (status only)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "none", "saveDataSuccessExecution": "none", "saveExecutionProgress": false, "saveManualExecutions": false }
+}

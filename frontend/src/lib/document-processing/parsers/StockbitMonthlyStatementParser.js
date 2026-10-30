@@ -1,5 +1,5 @@
-import { DocumentParserInterface } from '../DocumentParserInterface';
-import { plainNumber, providerDate } from '../SourceNumbers';
+import { DocumentParserInterface } from '../DocumentParserInterface.js';
+import { plainNumber, providerDate } from '../SourceNumbers.js';
 
 export class StockbitMonthlyStatementParser extends DocumentParserInterface {
   parse(text) {
